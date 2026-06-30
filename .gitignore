@@ -9,3 +9,7 @@ frontend/.env
 uploads/
 *.log
 .DS_Store
+# Documentație internă / note de dezvoltare
+*.md
+!backend/README.md
+!frontend/README.md
