@@ -1,0 +1,42 @@
+== Info:   Trying 127.0.0.1:3000...
+== Info: Connected to localhost (127.0.0.1) port 3000 (#0)
+=> Send header, 337 bytes (0x151)
+0000: GET /api/activity-logs?page=1&limit=5 HTTP/1.1
+0030: Host: localhost:3000
+0046: User-Agent: curl/7.88.1
+005f: Accept: */*
+006c: Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c
+00ac: 2VySWQiOjEsImVtYWlsIjoiYWRtaW5AZHNwZG9sai5ybyIsInJvbGVzIjpbIkFET
+00ec: UlOIl0sImlhdCI6MTc1MzI2OTE1OCwiZXhwIjoxNzUzMjcwMDU4fQ.OyjwddkRa1
+012c: zp93CPdOVj9xCUZ3YsZYhA8x9CfTkCux0
+014f: 
+<= Recv header, 36 bytes (0x24)
+0000: HTTP/1.1 500 Internal Server Error
+<= Recv header, 23 bytes (0x17)
+0000: X-Powered-By: Express
+<= Recv header, 52 bytes (0x34)
+0000: Access-Control-Allow-Origin: http://localhost:5173
+<= Recv header, 14 bytes (0xe)
+0000: Vary: Origin
+<= Recv header, 40 bytes (0x28)
+0000: Access-Control-Allow-Credentials: true
+<= Recv header, 43 bytes (0x2b)
+0000: Access-Control-Expose-Headers: Set-Cookie
+<= Recv header, 47 bytes (0x2f)
+0000: Content-Type: application/json; charset=utf-8
+<= Recv header, 21 bytes (0x15)
+0000: Content-Length: 111
+<= Recv header, 42 bytes (0x2a)
+0000: ETag: W/"6f-pw+qYcseTFgbhnU2CsU+DpgzGzU"
+<= Recv header, 37 bytes (0x25)
+0000: Date: Wed, 23 Jul 2025 11:12:38 GMT
+<= Recv header, 24 bytes (0x18)
+0000: Connection: keep-alive
+<= Recv header, 23 bytes (0x17)
+0000: Keep-Alive: timeout=5
+<= Recv header, 2 bytes (0x2)
+0000: 
+<= Recv data, 111 bytes (0x6f)
+0000: {"message":"Eroare la ob..inerea logurilor de activitate","error
+0040: ":"Incorrect arguments to mysqld_stmt_execute"}
+== Info: Connection #0 to host localhost left intact

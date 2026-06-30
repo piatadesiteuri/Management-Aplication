@@ -1,0 +1,279 @@
+@import url('react-pdf/dist/Page/TextLayer.css');
+@import url('react-pdf/dist/Page/AnnotationLayer.css');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Animații pentru modal */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Smooth scrollbar pentru toate elementele */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E0 #F7FAFC;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #F7FAFC;
+  border-radius: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #CBD5E0;
+  border-radius: 8px;
+  border: 2px solid #F7FAFC;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #A0AEC0;
+}
+
+/* Animații pentru butoane */
+.btn-hover-lift {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.btn-hover-lift:active {
+  transform: translateY(0);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Card hover effects */
+.card-hover {
+  transition: all 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+/* Pulse animation */
+@keyframes pulse-soft {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.pulse-soft {
+  animation: pulse-soft 2s infinite;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --primary-color: #2B6CB0;
+  --secondary-color: #4A5568;
+  --scrollbar-thumb: #CBD5E0;
+  --scrollbar-track: #EDF2F7;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+[data-theme="dark"] {
+  --scrollbar-thumb: #4A5568;
+  --scrollbar-track: #2D3748;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  transition: background-color 0.2s ease-in-out;
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #F7FAFC;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #1a1a1a;
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+button:hover {
+  border-color: #646cff;
+}
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+  a:hover {
+    color: #747bff;
+  }
+  button {
+    background-color: #f9f9f9;
+  }
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb);
+}
+
+/* FullCalendar customizations */
+.fc-event {
+  cursor: pointer !important;
+}
+
+.fc-toolbar-chunk {
+  display: flex;
+  gap: 4px;
+}
+
+.fc .fc-button {
+  padding: 6px 12px !important;
+  font-weight: 500 !important;
+}
+
+.fc .fc-toolbar-title {
+  font-size: 1.2em !important;
+}
+
+/* Fade animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+#root {
+  min-height: 100vh;
+}
+/* PDF highlight fix: suprapunere corectă layer text/canvas, fără deplasare */
+.react-pdf__Page {
+  position: relative !important; /* context corect pentru suprapunere */
+}
+.react-pdf__Page__textContent {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  z-index: 2 !important;
+  color: inherit !important;
+  /* elimin position: relative */
+}
+.react-pdf__Page__canvas {
+  z-index: 1 !important;
+  /* elimin position: relative */
+}
+
+/* Tailwind utility override (dacă e nevoie) */
+@layer utilities {
+  .pdf-text-layer-fix {
+    @apply opacity-100 z-[2] pointer-events-auto !important;
+  }
+  .pdf-canvas-fix {
+    @apply z-[1] !important;
+  }
+  .pdf-page-fix {
+    @apply relative !important;
+  }
+}
+

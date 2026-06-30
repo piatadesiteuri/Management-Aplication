@@ -1,0 +1,77 @@
+version: '2.4'
+
+services:
+  brasov_db:
+    image: mysql:8.0
+    restart: unless-stopped
+    env_file:
+      - .env.brasov
+    volumes:
+      - brasov_db_data:/var/lib/mysql
+    command: ["--default-authentication-plugin=mysql_native_password"]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks:
+      - brasov_internal
+
+  brasov_backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file:
+      - .env.brasov
+    environment:
+      - NODE_ENV=production
+      - PORT=3100
+      - FRONTEND_URL=https://brasov.docdil.ro
+      - DB_HOST=brasov_db
+      - DB_PORT=3306
+    depends_on:
+      brasov_db:
+        condition: service_healthy
+    volumes:
+      - brasov_uploads:/app/uploads
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=portal-servicii-publice_urbandesk_network
+      - traefik.http.routers.brasov_api.rule=Host(`brasov.docdil.ro`) && PathPrefix(`/api`)
+      - traefik.http.routers.brasov_api.entrypoints=websecure
+      - traefik.http.routers.brasov_api.tls=true
+      - traefik.http.routers.brasov_api.tls.certresolver=letsencrypt
+      - traefik.http.routers.brasov_api.tls.domains[0].main=brasov.docdil.ro
+      - traefik.http.routers.brasov_api.priority=100
+      - traefik.http.services.brasov_api.loadbalancer.server.port=3100
+    networks:
+      - proxy
+      - brasov_internal
+
+  brasov_frontend:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=portal-servicii-publice_urbandesk_network
+      - traefik.http.routers.brasov_web.rule=Host(`brasov.docdil.ro`)
+      - traefik.http.routers.brasov_web.entrypoints=websecure
+      - traefik.http.routers.brasov_web.tls=true
+      - traefik.http.routers.brasov_web.tls.certresolver=letsencrypt
+      - traefik.http.routers.brasov_web.tls.domains[0].main=brasov.docdil.ro
+      - traefik.http.routers.brasov_web.priority=1
+      - traefik.http.services.brasov_web.loadbalancer.server.port=80
+    networks:
+      - proxy
+
+volumes:
+  brasov_db_data:
+  brasov_uploads:
+
+networks:
+  proxy:
+    external: true
+    name: portal-servicii-publice_urbandesk_network
+  brasov_internal:
+    driver: bridge
