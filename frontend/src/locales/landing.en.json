@@ -1,0 +1,123 @@
+{
+  "nav": {
+    "logo": "LogiCore",
+    "links": {
+      "solutions": "Solutions",
+      "platform": "Platform",
+      "enterprise": "Enterprise",
+      "pricing": "Pricing"
+    },
+    "login": "Login",
+    "contact": "Contact"
+  },
+  "hero": {
+    "badge": "v4.0 Generative ERP is live",
+    "titlePrefix": "LogiCore: Centralized Operations.",
+    "titleHighlight": "Automated Workflows.",
+    "description": "The ultimate ERP portal for modern enterprises to manage fleet logistics, automate approval workflows, secure documents, and control budgets in real-time.",
+    "ctaPrimary": "Request Demo",
+    "ctaSecondary": "Watch Video",
+    "imageAlt": "LogiCore command center dashboard"
+  },
+  "capabilities": {
+    "title": "Command Center Capabilities",
+    "subtitle": "A modular ecosystem designed for granular control over every business vertical.",
+    "workflow": {
+      "title": "Workflow & Approval Engine",
+      "description": "Intelligent multi-tier approval pipelines that reduce operational friction by up to 70%."
+    },
+    "fleet": {
+      "title": "Smart Fleet & Logistics",
+      "description": "Real-time GPS tracking and fuel efficiency monitoring for global fleets.",
+      "footerValue": "28 Active"
+    },
+    "compliance": {
+      "title": "Compliance & EDMS",
+      "description": "Secure document vault with blockchain-verified audit trails.",
+      "footerValue": "99.9% Uptime"
+    },
+    "supplyChain": {
+      "title": "Supply Chain Audit",
+      "description": "Automated stock auditing with AI-driven reorder triggers.",
+      "alertLabel": "3 Critical Alerts"
+    },
+    "budget": {
+      "title": "Budget Control",
+      "description": "Centralized financial dashboards for cross-department spends."
+    }
+  },
+  "precisionInMotion": {
+    "title": "Precision in Motion",
+    "description": "Every asset request is processed through a deterministic logic chain.",
+    "cta": "Explore Workflow Engine",
+    "steps": [
+      { "title": "Asset Request", "description": "Request logged via mobile portal" },
+      { "title": "Auto Approval", "description": "Budget & policy check by AI" },
+      { "title": "Dispatch", "description": "API trigger to warehouse fleet" },
+      { "title": "Auto-logged", "description": "EDMS archive & reconciliation" }
+    ]
+  },
+  "pricing": {
+    "badge": "FLEXIBLE PLANS",
+    "title": "Scale with LogiCore",
+    "subtitle": "Transparent, enterprise-grade pricing designed to grow with your operational complexity.",
+    "mostPopular": "Most Popular",
+    "plans": [
+      {
+        "name": "Standard",
+        "price": "499 lei",
+        "period": "/mo",
+        "features": ["Up to 10 Active Vehicles", "Basic Workflow Engine", "Standard Document Vault"],
+        "cta": "Get Started"
+      },
+      {
+        "name": "Pro",
+        "price": "999 lei",
+        "period": "/mo",
+        "features": [
+          "Unlimited Fleet Tracking",
+          "Advanced AI Approvals",
+          "Blockchain Audit Trails",
+          "Priority 24/7 Support"
+        ],
+        "cta": "Start Free Trial"
+      },
+      {
+        "name": "Enterprise",
+        "price": "Custom",
+        "period": "",
+        "features": ["Custom API Integrations", "Dedicated Account Manager", "On-premise Deployment"],
+        "cta": "Contact Sales"
+      }
+    ]
+  },
+  "statsBar": {
+    "subtitle": "Example metrics",
+    "stats": [
+      { "label": "ACTIVE VEHICLES", "suffix": "/ 28", "helper": "Fleet monitored in real time" },
+      { "label": "FORMS SIGNED", "suffix": "+12%", "helper": "Across 14 departments" },
+      { "label": "OPEN APPROVALS", "suffix": "this week" },
+      { "label": "BUDGET UTILIZED", "suffix": "Q3 target" }
+    ]
+  },
+  "cta": {
+    "title": "Ready to unify your business operations?",
+    "description": "LogiCore is built for teams that need real control over their operations — fleet, approvals, documents, and budgets, all in one place.",
+    "primary": "Use LogiCore Today",
+    "secondary": "Speak to an Architect"
+  },
+  "contactForm": {
+    "title": "Get in Touch",
+    "subtitle": "Send us a message and we'll get back to you shortly.",
+    "name": "Name",
+    "email": "Email",
+    "company": "Company (optional)",
+    "message": "Message",
+    "placeholder": "How can we help?",
+    "submit": "Send Message",
+    "sent": "Message sent!"
+  },
+  "footer": {
+    "copyright": "© {year} LogiCore. All rights reserved."
+  }
+}

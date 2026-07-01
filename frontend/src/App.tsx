@@ -1,6 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider } from './providers/AuthProvider';
 import Login from './pages/Login';
+import LandingPage from './pages/LandingPage';
+import PricingPage from './pages/PricingPage';
 import Register from './pages/Register';
 import EmailVerification from './components/auth/EmailVerification';
 import Dashboard from './components/Dashboard';
@@ -99,6 +101,7 @@ function App() {
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthProvider>
         <Routes>
+          <Route path="/pricing" element={<PricingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/verify-email" element={<EmailVerification />} />
@@ -194,8 +197,8 @@ function App() {
             <Route path="budget" element={<PermissionRoute requiredPermissions={['budget.view']} fallbackTo="/admin/dashboard"><BudgetExecutionPage /></PermissionRoute>} />
           </Route>
 
-          {/* Redirecționare bazată pe rol */}
-          <Route path="/" element={<NavigateToDashboard />} />
+          {/* Pagina principală: landing pentru vizitatori, redirecționare bazată pe rol pentru utilizatori autentificați */}
+          <Route path="/" element={<RootRoute />} />
           <Route path="/notifications" element={<Navigate to="/admin/notifications" />} />
         </Routes>
       </AuthProvider>
@@ -203,18 +206,18 @@ function App() {
   );
 }
 
-function NavigateToDashboard() {
+function RootRoute() {
   const { user } = useAuth();
-  
+
   if (!user) {
-    return <Navigate to="/login" />;
+    return <LandingPage />;
   }
-  
+
   // Dacă este admin, merge la dashboard-ul admin
   if (user.roles.some(role => ADMIN_ENTRY_ROLES.includes(role))) {
     return <Navigate to="/admin/dashboard" />;
   }
-  
+
   // Altfel merge la dashboard-ul utilizatorului normal
   return <Navigate to="/user/dashboard" />;
 }

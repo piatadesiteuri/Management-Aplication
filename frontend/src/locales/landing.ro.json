@@ -1,0 +1,123 @@
+{
+  "nav": {
+    "logo": "LogiCore",
+    "links": {
+      "solutions": "Soluții",
+      "platform": "Platformă",
+      "enterprise": "Enterprise",
+      "pricing": "Prețuri"
+    },
+    "login": "Autentificare",
+    "contact": "Contact"
+  },
+  "hero": {
+    "badge": "ERP Generativ v4.0 este live",
+    "titlePrefix": "LogiCore: Operațiuni Centralizate.",
+    "titleHighlight": "Fluxuri de Lucru Automatizate.",
+    "description": "Portalul ERP definitiv pentru întreprinderile moderne, pentru gestionarea logisticii flotei, automatizarea fluxurilor de aprobare, securizarea documentelor și controlul bugetelor în timp real.",
+    "ctaPrimary": "Solicită o Demonstrație",
+    "ctaSecondary": "Vizionează Videoclipul",
+    "imageAlt": "Tabloul de bord LogiCore"
+  },
+  "capabilities": {
+    "title": "Capabilități Centru de Comandă",
+    "subtitle": "Un ecosistem modular conceput pentru control granular asupra fiecărui domeniu de activitate.",
+    "workflow": {
+      "title": "Motor de Workflow și Aprobare",
+      "description": "Fluxuri de aprobare inteligente, pe mai multe niveluri, care reduc frecarea operațională cu până la 70%."
+    },
+    "fleet": {
+      "title": "Flotă și Logistică Inteligentă",
+      "description": "Urmărire GPS în timp real și monitorizarea eficienței combustibilului pentru flote globale.",
+      "footerValue": "28 active"
+    },
+    "compliance": {
+      "title": "Conformitate și EDMS",
+      "description": "Seif securizat de documente cu jurnale de audit verificate prin blockchain.",
+      "footerValue": "99,9% disponibilitate"
+    },
+    "supplyChain": {
+      "title": "Audit Lanț de Aprovizionare",
+      "description": "Auditare automată a stocurilor cu declanșatoare de realimentare bazate pe AI.",
+      "alertLabel": "3 Alerte Critice"
+    },
+    "budget": {
+      "title": "Control Bugetar",
+      "description": "Tablouri de bord financiare centralizate pentru cheltuielile interdepartamentale."
+    }
+  },
+  "precisionInMotion": {
+    "title": "Precizie în Mișcare",
+    "description": "Fiecare cerere de activ este procesată printr-un lanț logic determinist.",
+    "cta": "Explorează Motorul de Workflow",
+    "steps": [
+      { "title": "Cerere de Activ", "description": "Cerere înregistrată prin portalul mobil" },
+      { "title": "Aprobare Automată", "description": "Verificare buget și politici prin AI" },
+      { "title": "Expediere", "description": "Declanșator API către flota din depozit" },
+      { "title": "Înregistrare Automată", "description": "Arhivare EDMS și reconciliere" }
+    ]
+  },
+  "pricing": {
+    "badge": "PLANURI FLEXIBILE",
+    "title": "Scalează cu LogiCore",
+    "subtitle": "Prețuri transparente, la nivel enterprise, concepute să crească odată cu complexitatea operațională.",
+    "mostPopular": "Cel Mai Popular",
+    "plans": [
+      {
+        "name": "Standard",
+        "price": "499 lei",
+        "period": "/lună",
+        "features": ["Până la 10 vehicule active", "Motor de workflow de bază", "Seif standard de documente"],
+        "cta": "Începe acum"
+      },
+      {
+        "name": "Pro",
+        "price": "999 lei",
+        "period": "/lună",
+        "features": [
+          "Urmărire nelimitată a flotei",
+          "Aprobări AI avansate",
+          "Jurnale de audit blockchain",
+          "Suport prioritar 24/7"
+        ],
+        "cta": "Începe perioada de probă gratuită"
+      },
+      {
+        "name": "Enterprise",
+        "price": "Personalizat",
+        "period": "",
+        "features": ["Integrări API personalizate", "Manager de cont dedicat", "Implementare on-premise"],
+        "cta": "Contactează Vânzările"
+      }
+    ]
+  },
+  "statsBar": {
+    "subtitle": "Exemple metrici",
+    "stats": [
+      { "label": "VEHICULE ACTIVE", "suffix": "/ 28", "helper": "Flotă monitorizată în timp real" },
+      { "label": "FORMULARE SEMNATE", "suffix": "+12%", "helper": "În 14 departamente" },
+      { "label": "APROBĂRI DESCHISE", "suffix": "această săptămână" },
+      { "label": "BUGET UTILIZAT", "suffix": "țintă T3" }
+    ]
+  },
+  "cta": {
+    "title": "Pregătit să unifici operațiunile afacerii tale?",
+    "description": "LogiCore este construit pentru echipele care au nevoie de control real asupra operațiunilor lor — flotă, aprobări, documente și bugete, toate într-un singur loc.",
+    "primary": "Folosește LogiCore Astăzi",
+    "secondary": "Vorbește cu un Arhitect"
+  },
+  "contactForm": {
+    "title": "Contactează-ne",
+    "subtitle": "Trimite-ne un mesaj și revenim în cel mai scurt timp.",
+    "name": "Nume",
+    "email": "Email",
+    "company": "Companie (opțional)",
+    "message": "Mesaj",
+    "placeholder": "Cum vă putem ajuta?",
+    "submit": "Trimite mesajul",
+    "sent": "Mesaj trimis!"
+  },
+  "footer": {
+    "copyright": "© {year} LogiCore. Toate drepturile rezervate."
+  }
+}
