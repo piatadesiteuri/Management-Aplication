@@ -114,6 +114,132 @@
       { "label": "PLATFORM UPTIME",     "suffix": "SLA target" }
     ]
   },
+  "modules": {
+    "title": "Every Module, Built In.",
+    "subtitle": "LogiCore ships with everything your organization needs — no third-party integrations required.",
+    "items": [
+      {
+        "icon": "FiGitBranch",
+        "title": "Workflow Engine",
+        "description": "Design and deploy multi-step approval chains for any department. Any process can be modelled, versioned, and run on auto-pilot.",
+        "features": ["Multi-step approval chains for any department", "Configurable stages: draft, review, approve, archive", "Full audit trail on every process decision"]
+      },
+      {
+        "icon": "FiCheckSquare",
+        "title": "Task Management",
+        "description": "Create, assign, and track tasks across departments with templates, deadlines, and full history logging.",
+        "features": ["Create and assign tasks with due dates and priority", "Reusable task templates per department", "Full task history and completion tracking"]
+      },
+      {
+        "icon": "FiCalendar",
+        "title": "Calendar & Scheduling",
+        "description": "Coordinate events, staff assignments, and departmental activities in a shared, real-time calendar.",
+        "features": ["Shared calendar across departments and teams", "Event assignments with staff role targeting", "Integrated with task and document workflows"]
+      },
+      {
+        "icon": "FiFileText",
+        "title": "Electronic Forms",
+        "description": "Build and distribute digital forms that feed directly into workflows and compliance records.",
+        "features": ["Build custom forms with field validation", "Forms feed directly into workflow pipelines", "Digitally signed and compliance-ready"]
+      },
+      {
+        "icon": "FiFolder",
+        "title": "Document Management",
+        "description": "Centralized document vault with version control, access permissions, and digital sign-off.",
+        "features": ["Centralized repository with version control", "Role-based access and sharing permissions", "Digital sign-off and EDMS archiving"]
+      },
+      {
+        "icon": "FiList",
+        "title": "Activity Logs & Audit",
+        "description": "Every action across the platform is timestamped, attributed, and immutably logged for compliance.",
+        "features": ["Real-time logging of every platform action", "Attributed to specific users and roles", "Exportable for compliance inspections"]
+      },
+      {
+        "icon": "FiBell",
+        "title": "Alerts & Notifications",
+        "description": "Rule-based alert engine with real-time WebSocket delivery — triggered by any platform event.",
+        "features": ["Rule-based alerts on any platform event", "Real-time delivery via WebSocket push", "Email, in-app, and escalation channels"]
+      },
+      {
+        "icon": "FiBarChart2",
+        "title": "Automated Reports",
+        "description": "Schedule and auto-generate operational and financial reports in PDF or Excel format.",
+        "features": ["Schedule recurring reports by department or date", "PDF and Excel export formats", "Triggered by system events or cron schedule"]
+      },
+      {
+        "icon": "FiPackage",
+        "title": "Supply Chain & Inventory",
+        "description": "Track stock movements, manage suppliers, and automate reorder triggers with full traceability.",
+        "features": ["Track stock levels, movements, and reorder triggers", "Supplier catalogue and entry notes management", "Configurable low-stock alert thresholds"]
+      },
+      {
+        "icon": "FiShoppingCart",
+        "title": "Material Requests",
+        "description": "Department-level requisition system with approval routing and delivery confirmation.",
+        "features": ["Department-level requisition creation and routing", "Approval-gated dispatch and delivery confirmation", "Linked to stock and budget modules"]
+      },
+      {
+        "icon": "FiDollarSign",
+        "title": "Budget Execution",
+        "description": "Real-time financial dashboards for cross-department spend tracking against approved budgets.",
+        "features": ["Cross-department spend dashboards in real time", "Compare actuals vs approved budgets", "Automated budget execution report generation"]
+      },
+      {
+        "icon": "FiTrendingUp",
+        "title": "Business Intelligence",
+        "description": "KPI dashboards and analytics views aggregating data from all platform modules in one place.",
+        "features": ["KPI dashboards aggregating all platform data", "Configurable metrics per department and role", "Data export and trend visualization"]
+      },
+      {
+        "icon": "FiMap",
+        "title": "Traceability",
+        "description": "End-to-end tracking of assets and materials from supplier to end user, with audit-ready reports.",
+        "features": ["Track assets from supplier to end user", "Full chain-of-custody audit log", "Compliance-ready traceability reports"]
+      },
+      {
+        "icon": "FiTruck",
+        "title": "Fleet & Vehicle Management",
+        "description": "Track vehicles, log fuel consumption, schedule maintenance, and monitor operational costs.",
+        "features": ["Track vehicle usage, fuel, and mileage", "Schedule and log maintenance activities", "Cost and utilization reporting per vehicle"]
+      },
+      {
+        "icon": "FiBook",
+        "title": "Registry Management",
+        "description": "Maintain regulatory and internal registries with controlled access and versioned change history.",
+        "features": ["Maintain regulatory and internal registries", "Controlled access and versioned change history", "Linked to compliance and audit workflows"]
+      },
+      {
+        "icon": "FiLink",
+        "title": "Interoperability",
+        "description": "Connect LogiCore to external systems via configurable API integrations and data export pipelines.",
+        "features": ["Connect to external systems via API", "Configurable data export and import pipelines", "Supports standard enterprise data protocols"]
+      },
+      {
+        "icon": "FiDroplet",
+        "title": "Laboratory (LIMS)",
+        "description": "Manage analysis requests, lab test catalogues, sample workflows, and digital result sign-off.",
+        "features": ["Manage analysis requests and test catalogues", "Digital worklist with result entry and validation", "PDF result export and digital sign-off"]
+      },
+      {
+        "icon": "FiArchive",
+        "title": "Pharmacy Management",
+        "description": "Track prescriptions, manage medication stock, record entry notes, and control supplier orders.",
+        "features": ["Track prescriptions, stock, and supplier orders", "Entry notes and stock movement logging", "Low-stock alerts with auto-reorder triggers"]
+      },
+      {
+        "icon": "FiUsers",
+        "title": "Patient Management",
+        "description": "Maintain patient records, manage identity data, and control access to personal health information.",
+        "features": ["Maintain patient records and identity data", "Role-based access to personal health information", "Integrated with clinical and compliance workflows"]
+      },
+      {
+        "icon": "FiUser",
+        "title": "Patient Portal",
+        "description": "Self-service patient-facing interface for accessing personal records and submitted requests.",
+        "features": ["Self-service access to personal records", "Submit and track service requests online", "Secure, authenticated portal access"]
+      }
+    ]
+  },
   "cta": {
     "title": "Ready to Bring Order to Your Operations?",
     "description": "LogiCore is built for organizations that need real control across departments — workflows, documents, budgets, resources, and compliance all unified and visible in real time.",

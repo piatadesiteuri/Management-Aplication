@@ -114,6 +114,132 @@
       { "label": "DISPONIBILITATE",        "suffix": "țintă SLA" }
     ]
   },
+  "modules": {
+    "title": "Fiecare Modul, Inclus.",
+    "subtitle": "LogiCore vine cu tot ce are nevoie organizația ta — fără integrări terțe necesare.",
+    "items": [
+      {
+        "icon": "FiGitBranch",
+        "title": "Motor de Workflow",
+        "description": "Proiectați și implementați lanțuri de aprobare în mai mulți pași pentru orice departament. Orice proces poate fi modelat, versionat și rulat automat.",
+        "features": ["Lanțuri de aprobare în mai mulți pași", "Etape configurabile: schiță, revizuire, aprobare, arhivare", "Trasabilitate completă a fiecărei decizii"]
+      },
+      {
+        "icon": "FiCheckSquare",
+        "title": "Gestionarea Sarcinilor",
+        "description": "Creați, atribuiți și urmăriți sarcini în toate departamentele cu șabloane, termene și istoric complet.",
+        "features": ["Crearea și atribuirea sarcinilor cu termene și prioritate", "Șabloane de sarcini reutilizabile per departament", "Istoric complet și urmărirea finalizării"]
+      },
+      {
+        "icon": "FiCalendar",
+        "title": "Calendar și Programare",
+        "description": "Coordonați evenimente, atribuiri de personal și activități departamentale într-un calendar comun în timp real.",
+        "features": ["Calendar comun pentru toate departamentele", "Atribuiri de evenimente cu țintire pe rol", "Integrat cu fluxurile de lucru și documente"]
+      },
+      {
+        "icon": "FiFileText",
+        "title": "Formulare Electronice",
+        "description": "Creați și distribuiți formulare digitale care se integrează direct în fluxurile de lucru și înregistrările de conformitate.",
+        "features": ["Formulare personalizate cu validare câmpuri", "Formularele alimentează direct fluxurile de lucru", "Semnate digital și gata pentru conformitate"]
+      },
+      {
+        "icon": "FiFolder",
+        "title": "Managementul Documentelor",
+        "description": "Seif centralizat de documente cu control al versiunilor, permisiuni de acces și semnătură digitală.",
+        "features": ["Depozit centralizat cu control al versiunilor", "Acces bazat pe rol și permisiuni de partajare", "Semnătură digitală și arhivare EDMS"]
+      },
+      {
+        "icon": "FiList",
+        "title": "Jurnale de Activitate și Audit",
+        "description": "Fiecare acțiune din platformă este marcată temporal, atribuită și înregistrată imuabil pentru conformitate.",
+        "features": ["Jurnalizare în timp real a fiecărei acțiuni", "Atribuit utilizatorilor și rolurilor specifice", "Exportabil pentru inspecții de conformitate"]
+      },
+      {
+        "icon": "FiBell",
+        "title": "Alerte și Notificări",
+        "description": "Motor de alerte bazat pe reguli cu livrare în timp real prin WebSocket — declanșat de orice eveniment din platformă.",
+        "features": ["Alerte bazate pe reguli la orice eveniment", "Livrare în timp real prin WebSocket", "Canale email, în aplicație și escaladare"]
+      },
+      {
+        "icon": "FiBarChart2",
+        "title": "Rapoarte Automate",
+        "description": "Programați și generați automat rapoarte operaționale și financiare în format PDF sau Excel.",
+        "features": ["Programați rapoarte recurente per departament", "Export PDF și Excel", "Declanșate de evenimente sistem sau cron"]
+      },
+      {
+        "icon": "FiPackage",
+        "title": "Lanț de Aprovizionare și Inventar",
+        "description": "Urmăriți mișcările de stoc, gestionați furnizorii și automatizați comenzile de realimentare cu trasabilitate completă.",
+        "features": ["Urmăriți niveluri de stoc și declanșatoare de realimentare", "Catalog furnizori și gestionare note de intrare", "Praguri configurabile pentru alerte de stoc redus"]
+      },
+      {
+        "icon": "FiShoppingCart",
+        "title": "Cereri de Materiale",
+        "description": "Sistem de requisition la nivel de departament cu rutare pentru aprobare și confirmare livrare.",
+        "features": ["Creare și rutare cereri la nivel departament", "Expediere condiționată de aprobare și confirmare livrare", "Legat de modulele de stoc și buget"]
+      },
+      {
+        "icon": "FiDollarSign",
+        "title": "Execuție Bugetară",
+        "description": "Tablouri de bord financiare în timp real pentru urmărirea cheltuielilor interdepartamentale față de bugetele aprobate.",
+        "features": ["Tablouri de bord cheltuieli interdepartamentale", "Comparație cheltuieli reale vs bugete aprobate", "Generare automată rapoarte de execuție bugetară"]
+      },
+      {
+        "icon": "FiTrendingUp",
+        "title": "Business Intelligence",
+        "description": "Tablouri de bord KPI și vizualizări analitice care agregă datele din toate modulele platformei.",
+        "features": ["Tablouri de bord KPI din toate modulele", "Metrici configurabile per departament și rol", "Export date și vizualizare tendințe"]
+      },
+      {
+        "icon": "FiMap",
+        "title": "Trasabilitate",
+        "description": "Urmărire end-to-end a activelor și materialelor de la furnizor la utilizatorul final, cu rapoarte gata pentru audit.",
+        "features": ["Urmăriți activele de la furnizor la destinatar", "Jurnal complet de lanț de custodie", "Rapoarte de trasabilitate gata pentru conformitate"]
+      },
+      {
+        "icon": "FiTruck",
+        "title": "Gestionarea Flotei și Vehiculelor",
+        "description": "Urmăriți vehiculele, înregistrați consumul de combustibil, programați mentenanța și monitorizați costurile operaționale.",
+        "features": ["Urmăriți utilizarea vehiculelor, combustibil și kilometraj", "Programați și înregistrați activitățile de mentenanță", "Rapoarte de cost și utilizare per vehicul"]
+      },
+      {
+        "icon": "FiBook",
+        "title": "Gestionarea Registrelor",
+        "description": "Mențineți registre reglementare și interne cu acces controlat și istoric versionat al modificărilor.",
+        "features": ["Mențineți registre reglementare și interne", "Acces controlat și istoric versionat", "Legat de fluxurile de conformitate și audit"]
+      },
+      {
+        "icon": "FiLink",
+        "title": "Interoperabilitate",
+        "description": "Conectați LogiCore la sisteme externe prin integrări API configurabile și pipeline-uri de export date.",
+        "features": ["Conectare la sisteme externe prin API", "Pipeline-uri configurabile de export și import date", "Suportă protocoale standard enterprise"]
+      },
+      {
+        "icon": "FiDroplet",
+        "title": "Laborator (LIMS)",
+        "description": "Gestionați cereri de analiză, cataloage de teste, fluxuri de lucru pentru probe și semnare digitală a rezultatelor.",
+        "features": ["Gestionați cereri de analiză și cataloage de teste", "Worklist digital cu introducere și validare rezultate", "Export PDF și semnătură digitală rezultate"]
+      },
+      {
+        "icon": "FiArchive",
+        "title": "Gestionarea Farmaciei",
+        "description": "Urmăriți prescripțiile, gestionați stocul de medicamente, înregistrați note de intrare și controlați comenzile la furnizori.",
+        "features": ["Urmăriți prescripții, stoc și comenzi furnizori", "Jurnalizare note de intrare și mișcări de stoc", "Alerte stoc redus cu declanșatoare de realimentare"]
+      },
+      {
+        "icon": "FiUsers",
+        "title": "Gestionarea Pacienților",
+        "description": "Mențineți înregistrările pacienților, gestionați datele de identitate și controlați accesul la informațiile medicale personale.",
+        "features": ["Mențineți înregistrările și datele de identitate", "Acces bazat pe rol la informații medicale", "Integrat cu fluxurile clinice și de conformitate"]
+      },
+      {
+        "icon": "FiUser",
+        "title": "Portal Pacienți",
+        "description": "Interfață self-service orientată spre pacienți pentru accesarea înregistrărilor personale și cererilor depuse.",
+        "features": ["Acces self-service la înregistrări personale", "Depunerea și urmărirea cererilor online", "Acces securizat și autentificat la portal"]
+      }
+    ]
+  },
   "cta": {
     "title": "Pregătit să Aduci Ordine în Operațiunile Tale?",
     "description": "LogiCore este construit pentru organizațiile care au nevoie de control real în toate departamentele — fluxuri de lucru, documente, bugete, resurse și conformitate, toate unificate și vizibile în timp real.",

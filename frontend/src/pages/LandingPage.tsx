@@ -3,6 +3,7 @@ import Hero from '../components/landing/Hero';
 import Capabilities from '../components/landing/Capabilities';
 import PrecisionInMotion from '../components/landing/PrecisionInMotion';
 import StatsBar from '../components/landing/StatsBar';
+import ModulesSection from '../components/landing/ModulesSection';
 import CTA from '../components/landing/CTA';
 import Footer from '../components/landing/Footer';
 import ContactForm from '../components/landing/ContactForm';
@@ -19,6 +20,7 @@ export default function LandingPage() {
           <Capabilities />
           <PrecisionInMotion />
           <StatsBar />
+          <ModulesSection />
           <CTA />
           <Footer />
           <ContactForm />
