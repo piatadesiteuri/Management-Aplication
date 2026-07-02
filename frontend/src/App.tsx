@@ -3,6 +3,8 @@ import { AuthProvider } from './providers/AuthProvider';
 import Login from './pages/Login';
 import LandingPage from './pages/LandingPage';
 import PricingPage from './pages/PricingPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import TermsOfServicePage from './pages/TermsOfServicePage';
 import Register from './pages/Register';
 import EmailVerification from './components/auth/EmailVerification';
 import Dashboard from './components/Dashboard';
@@ -102,6 +104,8 @@ function App() {
       <AuthProvider>
         <Routes>
           <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsOfServicePage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/verify-email" element={<EmailVerification />} />

@@ -1,12 +1,19 @@
 import { FiCheck } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useLandingLanguage } from './LanguageContext';
+import { useContactForm } from './ContactFormContext';
 
-const featuredFlags = [false, true, false];
+const featuredFlags  = [false, true, false];
+const contactFlags   = [false, false, true];
 
 export default function Pricing() {
   const { t } = useLandingLanguage();
-  const plans = t.pricing.plans.map((plan, i) => ({ ...plan, featured: featuredFlags[i] }));
+  const { open: openContact } = useContactForm();
+  const plans = t.pricing.plans.map((plan, i) => ({
+    ...plan,
+    featured: featuredFlags[i],
+    opensContact: contactFlags[i],
+  }));
   return (
     <section className="px-6 py-24 md:px-12">
       <div className="mx-auto max-w-7xl">
@@ -33,11 +40,16 @@ export default function Pricing() {
           {plans.map((plan, i) => (
             <motion.div
               key={plan.name}
-              initial={{ opacity: 0, y: 32 }}
-              whileInView={{ opacity: 1, y: 0 }}
+              variants={{
+                hidden: { opacity: 0, y: 32 },
+                visible: { opacity: 1, y: 0, transition: { duration: 0.55, ease: 'easeOut', delay: i * 0.1 } },
+                hover:   { y: -4, scale: 1.02, transition: { type: 'spring', stiffness: 300, damping: 22 } },
+              }}
+              initial="hidden"
+              whileInView="visible"
+              whileHover="hover"
               viewport={{ once: true, margin: '-60px' }}
-              transition={{ duration: 0.55, ease: 'easeOut', delay: i * 0.1 }}
-              className={`relative rounded-3xl p-8 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 ${
+              className={`relative rounded-3xl p-8 backdrop-blur-md ${
                 plan.featured
                   ? 'border-2 border-[#b3c5ff] bg-[#152031] hover:shadow-[0_0_32px_rgba(179,197,255,0.25)]'
                   : 'border border-white/10 bg-[#111c2d]/60 hover:border-white/20'
@@ -70,6 +82,7 @@ export default function Pricing() {
               </ul>
 
               <button
+                onClick={plan.opensContact ? openContact : undefined}
                 className={`mt-8 w-full rounded-xl px-5 py-3 text-sm font-semibold transition-all hover:scale-105 active:scale-95 ${
                   plan.featured
                     ? 'bg-[#0066ff] text-white shadow-[0_0_24px_rgba(0,102,255,0.35)] hover:bg-[#1a75ff]'

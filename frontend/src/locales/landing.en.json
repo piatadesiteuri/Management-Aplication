@@ -11,63 +11,69 @@
     "contact": "Contact"
   },
   "hero": {
-    "badge": "v4.0 Generative ERP is live",
-    "titlePrefix": "LogiCore: Centralized Operations.",
-    "titleHighlight": "Automated Workflows.",
-    "description": "The ultimate ERP portal for modern enterprises to manage fleet logistics, automate approval workflows, secure documents, and control budgets in real-time.",
+    "badge": "v4.0 — Full-Scale Enterprise Operations Platform",
+    "titlePrefix": "LogiCore: One Platform for",
+    "titleHighlight": "Every Department.",
+    "description": "The enterprise operations platform for organizations managing complex workflows across multiple departments. Automate approvals, control budgets, track resources, manage documents, and get real-time operational visibility — all from a single command center.",
     "ctaPrimary": "Request Demo",
     "ctaSecondary": "Watch Video",
-    "imageAlt": "LogiCore command center dashboard"
+    "imageAlt": "LogiCore operations command center dashboard"
   },
   "capabilities": {
-    "title": "Command Center Capabilities",
-    "subtitle": "A modular ecosystem designed for granular control over every business vertical.",
+    "title": "Everything Your Organization Needs. All in One Place.",
+    "subtitle": "A modular platform covering every department — workflows, resources, supply chain, compliance, and financial control — with role-based access for every level of your organization.",
     "workflow": {
       "title": "Workflow & Approval Engine",
-      "description": "Intelligent multi-tier approval pipelines that reduce operational friction by up to 70%."
+      "description": "Design and deploy multi-step approval chains for any department. Any process — requisitions, budget allocations, document sign-offs — can be modelled, versioned, and fully audited end-to-end."
     },
     "fleet": {
-      "title": "Smart Fleet & Logistics",
-      "description": "Real-time GPS tracking and fuel efficiency monitoring for global fleets.",
-      "footerValue": "28 Active"
+      "title": "Resource & Operations Management",
+      "description": "Manage physical assets, scheduling, and assignments across departments. Track utilization, maintenance records, and operational costs in real time.",
+      "footerValue": "14 Departments"
     },
     "compliance": {
-      "title": "Compliance & EDMS",
-      "description": "Secure document vault with blockchain-verified audit trails.",
-      "footerValue": "99.9% Uptime"
+      "title": "Compliance & Audit Trail",
+      "description": "Every action is timestamped and immutably logged. Full GDPR-compliant audit history for document access, approvals, and operational decisions — ready for inspection at any time.",
+      "footerValue": "100% Traceable"
     },
     "supplyChain": {
-      "title": "Supply Chain Audit",
-      "description": "Automated stock auditing with AI-driven reorder triggers.",
-      "alertLabel": "3 Critical Alerts"
+      "title": "Supply Chain & Inventory",
+      "description": "Automate requisitions, track stock movements, and trigger reorders based on configurable rules. Complete traceability from supplier to point of use.",
+      "alertLabel": "Low Stock Alert"
     },
     "budget": {
-      "title": "Budget Control",
-      "description": "Centralized financial dashboards for cross-department spends."
+      "title": "Budget Execution & BI",
+      "description": "Cross-department financial dashboards, automated execution reports, and KPI tracking — real-time visibility into operational spend versus budget targets."
     }
   },
   "precisionInMotion": {
-    "title": "Precision in Motion",
-    "description": "Every asset request is processed through a deterministic logic chain.",
+    "title": "Every Request. Tracked, Approved, and Documented.",
+    "description": "Every operation across your organization follows a controlled, auditable path. LogiCore enforces the right steps in the right order — so nothing falls through the cracks.",
     "cta": "Explore Workflow Engine",
     "steps": [
-      { "title": "Asset Request", "description": "Request logged via mobile portal" },
-      { "title": "Auto Approval", "description": "Budget & policy check by AI" },
-      { "title": "Dispatch", "description": "API trigger to warehouse fleet" },
-      { "title": "Auto-logged", "description": "EDMS archive & reconciliation" }
+      { "title": "Request Submitted", "description": "Team member logs a resource or service request via the portal" },
+      { "title": "Auto-Validation", "description": "System checks budget availability and policy compliance automatically" },
+      { "title": "Approved & Dispatched", "description": "Request routed to the responsible department for fulfillment" },
+      { "title": "Audit Log Sealed", "description": "Complete record archived to EDMS with timestamp and full user trace" }
     ]
   },
   "pricing": {
     "badge": "FLEXIBLE PLANS",
-    "title": "Scale with LogiCore",
-    "subtitle": "Transparent, enterprise-grade pricing designed to grow with your operational complexity.",
+    "title": "Scale LogiCore With Your Organization",
+    "subtitle": "Transparent, enterprise-grade pricing designed to grow with your team's operational complexity. All plans include core workflow automation and audit logging.",
     "mostPopular": "Most Popular",
     "plans": [
       {
         "name": "Standard",
         "price": "499 lei",
         "period": "/mo",
-        "features": ["Up to 10 Active Vehicles", "Basic Workflow Engine", "Standard Document Vault"],
+        "features": [
+          "Up to 50 user accounts",
+          "Core modules: Tasks, Calendar, Documents",
+          "Workflow Engine (up to 5 active flows)",
+          "GDPR Activity & Audit Log",
+          "Email notifications"
+        ],
         "cta": "Get Started"
       },
       {
@@ -75,10 +81,12 @@
         "price": "999 lei",
         "period": "/mo",
         "features": [
-          "Unlimited Fleet Tracking",
-          "Advanced AI Approvals",
-          "Blockchain Audit Trails",
-          "Priority 24/7 Support"
+          "Unlimited user accounts",
+          "All modules: Supply Chain, BI, Resource Management, Advanced Approvals",
+          "Unlimited workflow automation",
+          "Automated Reports & Budget Execution",
+          "Real-time alerts & WebSocket notifications",
+          "Priority support 24/7"
         ],
         "cta": "Start Free Trial"
       },
@@ -86,23 +94,29 @@
         "name": "Enterprise",
         "price": "Custom",
         "period": "",
-        "features": ["Custom API Integrations", "Dedicated Account Manager", "On-premise Deployment"],
-        "cta": "Contact Sales"
+        "features": [
+          "Custom API integrations",
+          "On-premise or private cloud deployment",
+          "Custom workflow templates & department configuration",
+          "Dedicated account manager",
+          "SLA with uptime guarantee"
+        ],
+        "cta": "Contact Us"
       }
     ]
   },
   "statsBar": {
-    "subtitle": "Example metrics",
+    "subtitle": "Example platform metrics",
     "stats": [
-      { "label": "ACTIVE VEHICLES", "suffix": "/ 28", "helper": "Fleet monitored in real time" },
-      { "label": "FORMS SIGNED", "suffix": "+12%", "helper": "Across 14 departments" },
-      { "label": "OPEN APPROVALS", "suffix": "this week" },
-      { "label": "BUDGET UTILIZED", "suffix": "Q3 target" }
+      { "label": "ACTIVE USERS",        "suffix": "staff accounts", "helper": "Across all departments and roles" },
+      { "label": "DOCUMENTS PROCESSED", "suffix": "this month",     "helper": "Forms, reports, and records" },
+      { "label": "ACTIVE WORKFLOWS",    "suffix": "in progress" },
+      { "label": "PLATFORM UPTIME",     "suffix": "SLA target" }
     ]
   },
   "cta": {
-    "title": "Ready to unify your business operations?",
-    "description": "LogiCore is built for teams that need real control over their operations — fleet, approvals, documents, and budgets, all in one place.",
+    "title": "Ready to Bring Order to Your Operations?",
+    "description": "LogiCore is built for organizations that need real control across departments — workflows, documents, budgets, resources, and compliance all unified and visible in real time.",
     "primary": "Use LogiCore Today",
     "secondary": "Speak to an Architect"
   },
@@ -113,11 +127,99 @@
     "email": "Email",
     "company": "Company (optional)",
     "message": "Message",
+    "namePlaceholder": "Enter your name",
+    "emailPlaceholder": "Enter your email address",
+    "companyPlaceholder": "Enter your company name",
     "placeholder": "How can we help?",
     "submit": "Send Message",
-    "sent": "Message sent!"
+    "sent": "Message sent!",
+    "phone": "+40 748 000 000",
+    "contactEmail": "contact@logicore.ro",
+    "locationCity": "Craiova, Romania",
+    "locationFull": "Bulevardul Gheorghe Chițu 45\nCraiova, România",
+    "takeMeThere": "Take Me There"
+  },
+  "privacyPolicy": {
+    "title": "Privacy Policy",
+    "lastUpdated": "Last updated",
+    "s1title": "1. Introduction",
+    "s1p1": "LogiCore (we, us, or our) is committed to protecting your personal data. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our enterprise resource planning platform and associated services.",
+    "s1p2": "By accessing or using LogiCore, you agree to the collection and use of information in accordance with this policy. If you do not agree with the terms, please discontinue use of the platform.",
+    "s2title": "2. Information We Collect",
+    "s2intro": "We may collect the following categories of personal data:",
+    "s2i1": "Account information — name, email address, job title, company name, and password hash.",
+    "s2i2": "Usage data — IP addresses, browser type, pages visited, time spent, and interaction logs.",
+    "s2i3": "Operational data — fleet records, approval workflows, document metadata, and budget entries you create within the platform.",
+    "s2i4": "Communication data — messages sent via the contact form or support channels.",
+    "s3title": "3. How We Use Your Information",
+    "s3intro": "We use the collected data to:",
+    "s3i1": "Provide, maintain, and improve the LogiCore platform.",
+    "s3i2": "Authenticate users and manage access permissions.",
+    "s3i3": "Send transactional notifications (e.g., approval updates, system alerts).",
+    "s3i4": "Analyse usage patterns to enhance platform performance and user experience.",
+    "s3i5": "Comply with legal obligations under Romanian and EU law.",
+    "s4title": "4. Legal Basis for Processing (GDPR)",
+    "s4p1": "If you are located in the European Economic Area, we process your personal data under the following legal bases: contractual necessity, legitimate interests, compliance with legal obligations, and, where required, your explicit consent.",
+    "s5title": "5. Data Retention",
+    "s5p1": "We retain personal data for as long as your account is active or as required to provide services. Operational records may be retained for up to 7 years to comply with Romanian accounting and audit regulations. You may request deletion of your data at any time, subject to applicable legal retention requirements.",
+    "s6title": "6. Data Sharing",
+    "s6p1": "We do not sell your personal data. We may share data with trusted third-party service providers who assist us in operating the platform (e.g., cloud hosting, analytics), under strict data processing agreements. We may also disclose data if required by law or to protect the rights of LogiCore or its users.",
+    "s7title": "7. Security",
+    "s7p1": "We implement industry-standard security measures including TLS encryption in transit, AES-256 encryption at rest, role-based access control, and regular security audits. No method of transmission over the internet is 100% secure; we strive to use commercially acceptable means to protect your data.",
+    "s8title": "8. Your Rights",
+    "s8intro": "Under GDPR and applicable Romanian law, you have the right to:",
+    "s8i1": "Access the personal data we hold about you.",
+    "s8i2": "Rectify inaccurate or incomplete data.",
+    "s8i3": "Request erasure (right to be forgotten) where legally permissible.",
+    "s8i4": "Object to or restrict certain types of processing.",
+    "s8i5": "Receive your data in a portable format.",
+    "s8i6": "Lodge a complaint with the Romanian National Supervisory Authority (ANSPDCP).",
+    "s9title": "9. Contact",
+    "s9p1": "For any privacy-related inquiries or to exercise your rights, please contact our Data Protection Officer at"
+  },
+  "termsOfService": {
+    "title": "Terms of Service",
+    "lastUpdated": "Last updated",
+    "s1title": "1. Acceptance of Terms",
+    "s1p1": "By accessing or using the LogiCore platform (the Service), you agree to be bound by these Terms of Service (the Terms). If you are using the Service on behalf of an organisation, you represent that you have authority to bind that organisation to these Terms.",
+    "s1p2": "We reserve the right to modify these Terms at any time. Continued use of the Service after changes constitutes acceptance of the revised Terms.",
+    "s2title": "2. Description of Service",
+    "s2p1": "LogiCore is an enterprise resource planning platform providing fleet management, workflow automation, document management, and budget control tools. The Service is provided on a subscription basis with tiers as described on our Pricing page.",
+    "s3title": "3. Account Registration",
+    "s3p1": "You must create an account to access the Service. You are responsible for maintaining the confidentiality of your credentials and for all activities that occur under your account. You agree to notify us immediately of any unauthorised access.",
+    "s3p2": "Accounts may not be shared between individuals. Each user must have their own credentials. You agree to provide accurate, current, and complete information during registration.",
+    "s4title": "4. Acceptable Use",
+    "s4intro": "You agree not to:",
+    "s4i1": "Use the Service for any unlawful purpose or in violation of these Terms.",
+    "s4i2": "Attempt to gain unauthorised access to any part of the Service or its infrastructure.",
+    "s4i3": "Reverse-engineer, decompile, or disassemble any component of the Service.",
+    "s4i4": "Upload malicious code, viruses, or any content that could harm the Service or other users.",
+    "s4i5": "Use automated tools to scrape, crawl, or extract data from the platform without prior written consent.",
+    "s5title": "5. Subscription and Billing",
+    "s5p1": "Subscription fees are charged on a monthly basis as specified in your chosen plan. All fees are exclusive of VAT, which will be applied at the prevailing Romanian rate where applicable. Subscriptions auto-renew unless cancelled at least 7 days before the next billing date.",
+    "s5p2": "We reserve the right to modify pricing with 30 days' notice. Refunds are available within 14 days of initial subscription, provided the account has not processed more than 50 operational records.",
+    "s6title": "6. Intellectual Property",
+    "s6p1": "All content, features, and functionality of the Service — including but not limited to software, text, graphics, logos, and data models — are the exclusive property of LogiCore and are protected by Romanian and international intellectual property laws.",
+    "s6p2": "You retain ownership of all data you input into the Service. By using the Service, you grant LogiCore a limited, non-exclusive licence to process that data solely to provide the Service.",
+    "s7title": "7. Data and Privacy",
+    "s7p1": "Your use of the Service is also governed by our Privacy Policy. We process personal data in accordance with GDPR and Romanian data protection law (Law no. 190/2018).",
+    "s7see": "Read our",
+    "s7link": "Privacy Policy",
+    "s8title": "8. Service Availability",
+    "s8p1": "We target 99.9% uptime for the Service. Scheduled maintenance windows will be communicated at least 24 hours in advance. We shall not be liable for unavailability caused by force majeure events, including natural disasters, war, or infrastructure failures outside our reasonable control.",
+    "s9title": "9. Limitation of Liability",
+    "s9p1": "To the maximum extent permitted by applicable law, LogiCore shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of or inability to use the Service. Our aggregate liability for any claim shall not exceed the total fees paid by you in the three months preceding the claim.",
+    "s10title": "10. Termination",
+    "s10p1": "Either party may terminate the subscription with 30 days' written notice. We may suspend or terminate access immediately if you breach these Terms. Upon termination, you may export your data for 30 days before it is securely deleted from our systems.",
+    "s11title": "11. Governing Law",
+    "s11p1": "These Terms are governed by the laws of Romania. Any disputes arising from or in connection with these Terms shall be subject to the exclusive jurisdiction of the courts of Craiova, Romania.",
+    "s12title": "12. Contact",
+    "s12p1": "For questions regarding these Terms, please contact us at"
   },
   "footer": {
-    "copyright": "© {year} LogiCore. All rights reserved."
+    "copyright": "© {year} LogiCore. All rights reserved.",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "contact": "Contact"
   }
 }

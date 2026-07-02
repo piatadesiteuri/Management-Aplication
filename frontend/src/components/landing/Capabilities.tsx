@@ -1,4 +1,4 @@
-import { FiShare2, FiTruck, FiShield, FiArchive, FiCreditCard, FiArrowRight, FiCheck } from 'react-icons/fi';
+import { FiShare2, FiActivity, FiShield, FiArchive, FiCreditCard, FiCheck } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useLandingLanguage } from './LanguageContext';
 
@@ -26,8 +26,16 @@ export default function Capabilities() {
 
         <div className="mt-12 grid gap-6 lg:grid-cols-3">
           <motion.div
-            {...inView(0.1)}
-            className="group flex flex-col justify-between rounded-3xl border border-white/10 bg-[#111c2d]/60 p-8 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-white/20 lg:row-span-2"
+            variants={{
+              hidden: { opacity: 0, y: 32 },
+              visible: { opacity: 1, y: 0, transition: { duration: 0.55, ease: 'easeOut', delay: 0.1 } },
+              hover:   { y: -4, scale: 1.02, transition: { type: 'spring', stiffness: 300, damping: 22 } },
+            }}
+            initial="hidden"
+            whileInView="visible"
+            whileHover="hover"
+            viewport={{ once: true, margin: '-60px' }}
+            className="group flex flex-col justify-between rounded-3xl border border-white/10 bg-[#111c2d]/60 p-8 backdrop-blur-md hover:border-white/20 lg:row-span-2"
           >
             <div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#2a3548] transition-transform duration-300 group-hover:scale-110">
@@ -81,13 +89,12 @@ export default function Capabilities() {
 
           <CapabilityCard
             delay={0.2}
-            icon={<FiTruck className="h-5 w-5 text-[#c0c1ff]" />}
+            icon={<FiActivity className="h-5 w-5 text-[#c0c1ff]" />}
             title={t.capabilities.fleet.title}
             description={t.capabilities.fleet.description}
             footer={
               <div className="flex items-center justify-between">
                 <span className="text-sm font-semibold text-[#24ffcd]">{t.capabilities.fleet.footerValue}</span>
-                <FiArrowRight className="h-4 w-4 text-[#8c90a1] transition-transform duration-300 group-hover:translate-x-1" />
               </div>
             }
           />
@@ -100,7 +107,6 @@ export default function Capabilities() {
             footer={
               <div className="flex items-center justify-between">
                 <span className="text-sm font-semibold text-[#d8e3fb]">{t.capabilities.compliance.footerValue}</span>
-                <span className="text-[#8c90a1]">🔒</span>
               </div>
             }
           />
@@ -147,11 +153,16 @@ function CapabilityCard({
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 32 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      variants={{
+        hidden: { opacity: 0, y: 32 },
+        visible: { opacity: 1, y: 0, transition: { duration: 0.55, ease: 'easeOut', delay } },
+        hover:   { y: -4, scale: 1.02, transition: { type: 'spring', stiffness: 300, damping: 22 } },
+      }}
+      initial="hidden"
+      whileInView="visible"
+      whileHover="hover"
       viewport={{ once: true, margin: '-60px' }}
-      transition={{ duration: 0.55, ease: 'easeOut', delay }}
-      className="group flex flex-col justify-between rounded-3xl border border-white/10 bg-[#111c2d]/60 p-6 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-white/20"
+      className="group flex flex-col justify-between rounded-3xl border border-white/10 bg-[#111c2d]/60 p-6 backdrop-blur-md hover:border-white/20"
     >
       <div>
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2a3548] transition-transform duration-300 group-hover:scale-110">

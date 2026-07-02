@@ -20,13 +20,6 @@ export default function Hero() {
 
       <div className="relative mx-auto grid max-w-7xl items-center gap-16 lg:grid-cols-2">
         <div>
-          <motion.span
-            {...fadeUp(0)}
-            className="inline-flex items-center rounded-full border border-[#424656] bg-[#111c2d] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.05em] text-[#b3c5ff]"
-          >
-            {t.hero.badge}
-          </motion.span>
-
           <motion.h1
             {...fadeUp(0.1)}
             className="mt-6 text-[40px] font-semibold leading-[1.1] tracking-[-0.02em] text-[#d8e3fb] md:text-[48px] md:leading-[56px]"
@@ -52,19 +45,18 @@ export default function Hero() {
           </motion.div>
         </div>
 
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 }}
-          className="group relative"
-        >
+        <div className="group relative isolate">
           <div className="pointer-events-none absolute inset-0 -z-10 rounded-full bg-[#24ffcd]/10 blur-[100px]" />
-          <img
+          <motion.img
             src={heroDashboard}
             alt={t.hero.imageAlt}
-            className="relative w-full rounded-3xl transition-transform duration-700 ease-out group-hover:scale-[1.1] group-hover:-rotate-1"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            whileHover={{ scale: 1.08, rotate: -1 }}
+            transition={{ duration: 0.7, ease: 'easeOut' }}
+            className="relative w-full rounded-3xl"
           />
-        </motion.div>
+        </div>
       </div>
     </section>
   );

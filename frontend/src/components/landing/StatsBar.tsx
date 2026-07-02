@@ -1,12 +1,12 @@
-import { FiTruck, FiFileText, FiCheckCircle, FiPieChart } from 'react-icons/fi';
+import { FiUsers, FiFileText, FiCheckCircle, FiPieChart } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useLandingLanguage } from './LanguageContext';
 
 const statsMeta = [
-  { icon: FiTruck,        value: '24',  progress: 86, accent: '#b3c5ff' },
-  { icon: FiFileText,     value: '142',              accent: '#24ffcd' },
-  { icon: FiCheckCircle,  value: '12',               accent: '#c0c1ff' },
-  { icon: FiPieChart,     value: '68%', progress: 68, accent: '#24ffcd' },
+  { icon: FiUsers,        value: '345',   progress: 94, accent: '#b3c5ff' },
+  { icon: FiFileText,     value: '2,400',              accent: '#24ffcd' },
+  { icon: FiCheckCircle,  value: '18',                 accent: '#c0c1ff' },
+  { icon: FiPieChart,     value: '99.9%', progress: 99, accent: '#24ffcd' },
 ];
 
 export default function StatsBar() {
@@ -28,11 +28,16 @@ export default function StatsBar() {
           {stats.map((stat, i) => (
             <motion.div
               key={stat.label}
-              initial={{ opacity: 0, y: 28 }}
-              whileInView={{ opacity: 1, y: 0 }}
+              variants={{
+                hidden: { opacity: 0, y: 28 },
+                visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut', delay: i * 0.1 } },
+                hover:   { y: -4, scale: 1.02, transition: { type: 'spring', stiffness: 300, damping: 22 } },
+              }}
+              initial="hidden"
+              whileInView="visible"
+              whileHover="hover"
               viewport={{ once: true, margin: '-60px' }}
-              transition={{ duration: 0.5, ease: 'easeOut', delay: i * 0.1 }}
-              className="rounded-2xl border-l-2 border border-white/10 bg-[#111c2d]/60 p-5 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-white/20"
+              className="rounded-2xl border-l-2 border border-white/10 bg-[#111c2d]/60 p-5 backdrop-blur-md hover:border-white/20"
               style={{ borderLeftColor: stat.accent }}
             >
               <div className="flex items-center justify-between">

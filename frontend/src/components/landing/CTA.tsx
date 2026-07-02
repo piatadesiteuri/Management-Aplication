@@ -8,10 +8,15 @@ export default function CTA() {
   return (
     <section id="cta" className="px-6 pb-24 md:px-12">
       <motion.div
-        initial={{ opacity: 0, y: 32 }}
-        whileInView={{ opacity: 1, y: 0 }}
+        variants={{
+          hidden: { opacity: 0, y: 32 },
+          visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
+          hover:   { y: -4, scale: 1.01, transition: { type: 'spring', stiffness: 300, damping: 22 } },
+        }}
+        initial="hidden"
+        whileInView="visible"
+        whileHover="hover"
         viewport={{ once: true, margin: '-60px' }}
-        transition={{ duration: 0.6, ease: 'easeOut' }}
         className="relative mx-auto max-w-7xl overflow-hidden rounded-[2.5rem] border border-white/10 bg-gradient-to-br from-[#111c2d] to-[#0a2a22] p-12 text-center backdrop-blur-md md:p-16"
       >
         <div className="pointer-events-none absolute -bottom-24 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full bg-[#24ffcd]/15 blur-[100px]" />

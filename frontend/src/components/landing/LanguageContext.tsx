@@ -19,8 +19,21 @@ const LandingLanguageContext = createContext<LandingLanguageContextValue>({
   setLang: () => {},
 });
 
+const STORAGE_KEY = 'logicore-lang';
+
+function readStoredLang(): Lang {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  return stored === 'en' || stored === 'ro' ? stored : 'ro';
+}
+
 export function LandingLanguageProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLang] = useState<Lang>('ro');
+  const [lang, setLangState] = useState<Lang>(readStoredLang);
+
+  const setLang = (l: Lang) => {
+    localStorage.setItem(STORAGE_KEY, l);
+    setLangState(l);
+  };
+
   return (
     <LandingLanguageContext.Provider value={{ t: translations[lang], lang, setLang }}>
       {children}

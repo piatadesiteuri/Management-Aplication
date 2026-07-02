@@ -11,63 +11,69 @@
     "contact": "Contact"
   },
   "hero": {
-    "badge": "ERP Generativ v4.0 este live",
-    "titlePrefix": "LogiCore: Operațiuni Centralizate.",
-    "titleHighlight": "Fluxuri de Lucru Automatizate.",
-    "description": "Portalul ERP definitiv pentru întreprinderile moderne, pentru gestionarea logisticii flotei, automatizarea fluxurilor de aprobare, securizarea documentelor și controlul bugetelor în timp real.",
+    "badge": "v4.0 — Platformă Completă de Operațiuni Enterprise",
+    "titlePrefix": "LogiCore: O Singură Platformă pentru",
+    "titleHighlight": "Fiecare Departament.",
+    "description": "Platforma de operațiuni enterprise pentru organizațiile care gestionează fluxuri de lucru complexe în mai multe departamente. Automatizează aprobările, controlează bugetele, urmărește resursele, gestionează documentele și obține vizibilitate operațională în timp real — totul dintr-un singur centru de comandă.",
     "ctaPrimary": "Solicită o Demonstrație",
     "ctaSecondary": "Vizionează Videoclipul",
     "imageAlt": "Tabloul de bord LogiCore"
   },
   "capabilities": {
-    "title": "Capabilități Centru de Comandă",
-    "subtitle": "Un ecosistem modular conceput pentru control granular asupra fiecărui domeniu de activitate.",
+    "title": "Tot ce are Nevoie Organizația Ta. Într-un Singur Loc.",
+    "subtitle": "O platformă modulară care acoperă fiecare departament — fluxuri de lucru, resurse, lanț de aprovizionare, conformitate și control financiar — cu acces bazat pe rol pentru fiecare nivel al organizației.",
     "workflow": {
       "title": "Motor de Workflow și Aprobare",
-      "description": "Fluxuri de aprobare inteligente, pe mai multe niveluri, care reduc frecarea operațională cu până la 70%."
+      "description": "Proiectați și implementați lanțuri de aprobare în mai mulți pași pentru orice departament. Orice proces — cereri de materiale, alocări bugetare, semnarea documentelor — poate fi modelat, versionat și complet auditabil."
     },
     "fleet": {
-      "title": "Flotă și Logistică Inteligentă",
-      "description": "Urmărire GPS în timp real și monitorizarea eficienței combustibilului pentru flote globale.",
-      "footerValue": "28 active"
+      "title": "Gestionarea Resurselor și Operațiunilor",
+      "description": "Gestionați activele fizice, programarea și sarcinile în toate departamentele. Urmăriți utilizarea, înregistrările de mentenanță și costurile operaționale în timp real.",
+      "footerValue": "14 Departamente"
     },
     "compliance": {
-      "title": "Conformitate și EDMS",
-      "description": "Seif securizat de documente cu jurnale de audit verificate prin blockchain.",
-      "footerValue": "99,9% disponibilitate"
+      "title": "Conformitate și Trasabilitate",
+      "description": "Fiecare acțiune este marcată temporal și înregistrată imuabil. Istoric complet de audit conform GDPR pentru accesul la documente, aprobări și decizii operaționale — gata oricând pentru inspecție.",
+      "footerValue": "100% Trasabil"
     },
     "supplyChain": {
-      "title": "Audit Lanț de Aprovizionare",
-      "description": "Auditare automată a stocurilor cu declanșatoare de realimentare bazate pe AI.",
-      "alertLabel": "3 Alerte Critice"
+      "title": "Lanț de Aprovizionare și Inventar",
+      "description": "Automatizați cererile de materiale, urmăriți mișcările de stoc și declanșați realimentarea pe baza unor reguli configurabile. Trasabilitate completă de la furnizor la punct de utilizare.",
+      "alertLabel": "Alertă Stoc Redus"
     },
     "budget": {
-      "title": "Control Bugetar",
-      "description": "Tablouri de bord financiare centralizate pentru cheltuielile interdepartamentale."
+      "title": "Execuție Bugetară și BI",
+      "description": "Tablouri de bord financiare interdepartamentale, rapoarte de execuție automatizate și urmărirea KPI — vizibilitate în timp real a cheltuielilor față de țintele bugetare."
     }
   },
   "precisionInMotion": {
-    "title": "Precizie în Mișcare",
-    "description": "Fiecare cerere de activ este procesată printr-un lanț logic determinist.",
+    "title": "Fiecare Cerere. Urmărită, Aprobată și Documentată.",
+    "description": "Fiecare operațiune din organizația ta urmează un traseu controlat și auditabil. LogiCore impune pașii corecți în ordinea corectă — astfel încât nimic să nu fie omis.",
     "cta": "Explorează Motorul de Workflow",
     "steps": [
-      { "title": "Cerere de Activ", "description": "Cerere înregistrată prin portalul mobil" },
-      { "title": "Aprobare Automată", "description": "Verificare buget și politici prin AI" },
-      { "title": "Expediere", "description": "Declanșator API către flota din depozit" },
-      { "title": "Înregistrare Automată", "description": "Arhivare EDMS și reconciliere" }
+      { "title": "Cerere Înregistrată", "description": "Membrul echipei înregistrează o cerere de resurse sau servicii prin portal" },
+      { "title": "Validare Automată", "description": "Sistemul verifică disponibilitatea bugetului și conformitatea cu politicile automat" },
+      { "title": "Aprobare și Expediere", "description": "Cererea este direcționată către departamentul responsabil pentru îndeplinire" },
+      { "title": "Jurnal de Audit Sigilat", "description": "Înregistrarea completă este arhivată în EDMS cu marcaj temporal și urmă completă a utilizatorului" }
     ]
   },
   "pricing": {
     "badge": "PLANURI FLEXIBILE",
-    "title": "Scalează cu LogiCore",
-    "subtitle": "Prețuri transparente, la nivel enterprise, concepute să crească odată cu complexitatea operațională.",
+    "title": "Scalează LogiCore cu Organizația Ta",
+    "subtitle": "Prețuri transparente, la nivel enterprise, concepute să crească odată cu complexitatea operațională a echipei tale. Toate planurile includ automatizarea fluxurilor de lucru și jurnalizare audit.",
     "mostPopular": "Cel Mai Popular",
     "plans": [
       {
         "name": "Standard",
         "price": "499 lei",
         "period": "/lună",
-        "features": ["Până la 10 vehicule active", "Motor de workflow de bază", "Seif standard de documente"],
+        "features": [
+          "Până la 50 de conturi utilizator",
+          "Module de bază: Sarcini, Calendar, Documente",
+          "Motor de workflow (max. 5 fluxuri active)",
+          "Jurnal de activitate și audit GDPR",
+          "Notificări email"
+        ],
         "cta": "Începe acum"
       },
       {
@@ -75,34 +81,42 @@
         "price": "999 lei",
         "period": "/lună",
         "features": [
-          "Urmărire nelimitată a flotei",
-          "Aprobări AI avansate",
-          "Jurnale de audit blockchain",
+          "Conturi utilizator nelimitate",
+          "Toate modulele: Lanț Aprovizionare, BI, Gestionare Resurse, Aprobări Avansate",
+          "Automatizare workflow nelimitată",
+          "Rapoarte automate și execuție bugetară",
+          "Alerte în timp real și notificări WebSocket",
           "Suport prioritar 24/7"
         ],
-        "cta": "Începe perioada de probă gratuită"
+        "cta": "Începe Perioada de Probă"
       },
       {
         "name": "Enterprise",
         "price": "Personalizat",
         "period": "",
-        "features": ["Integrări API personalizate", "Manager de cont dedicat", "Implementare on-premise"],
-        "cta": "Contactează Vânzările"
+        "features": [
+          "Integrări API personalizate",
+          "Implementare on-premise sau cloud privat",
+          "Șabloane workflow și configurare departamente personalizate",
+          "Manager de cont dedicat",
+          "SLA cu garanție de disponibilitate"
+        ],
+        "cta": "Contactează-ne"
       }
     ]
   },
   "statsBar": {
-    "subtitle": "Exemple metrici",
+    "subtitle": "Exemple metrici platformă",
     "stats": [
-      { "label": "VEHICULE ACTIVE", "suffix": "/ 28", "helper": "Flotă monitorizată în timp real" },
-      { "label": "FORMULARE SEMNATE", "suffix": "+12%", "helper": "În 14 departamente" },
-      { "label": "APROBĂRI DESCHISE", "suffix": "această săptămână" },
-      { "label": "BUGET UTILIZAT", "suffix": "țintă T3" }
+      { "label": "UTILIZATORI ACTIVI",     "suffix": "conturi personal", "helper": "În toate departamentele și rolurile" },
+      { "label": "DOCUMENTE PROCESATE",    "suffix": "luna aceasta",      "helper": "Formulare, rapoarte și înregistrări" },
+      { "label": "FLUXURI ACTIVE",         "suffix": "în desfășurare" },
+      { "label": "DISPONIBILITATE",        "suffix": "țintă SLA" }
     ]
   },
   "cta": {
-    "title": "Pregătit să unifici operațiunile afacerii tale?",
-    "description": "LogiCore este construit pentru echipele care au nevoie de control real asupra operațiunilor lor — flotă, aprobări, documente și bugete, toate într-un singur loc.",
+    "title": "Pregătit să Aduci Ordine în Operațiunile Tale?",
+    "description": "LogiCore este construit pentru organizațiile care au nevoie de control real în toate departamentele — fluxuri de lucru, documente, bugete, resurse și conformitate, toate unificate și vizibile în timp real.",
     "primary": "Folosește LogiCore Astăzi",
     "secondary": "Vorbește cu un Arhitect"
   },
@@ -113,11 +127,99 @@
     "email": "Email",
     "company": "Companie (opțional)",
     "message": "Mesaj",
+    "namePlaceholder": "Introduceți numele dvs.",
+    "emailPlaceholder": "Introduceți adresa de email",
+    "companyPlaceholder": "Introduceți numele companiei",
     "placeholder": "Cum vă putem ajuta?",
     "submit": "Trimite mesajul",
-    "sent": "Mesaj trimis!"
+    "sent": "Mesaj trimis!",
+    "phone": "+40 748 000 000",
+    "contactEmail": "contact@logicore.ro",
+    "locationCity": "Craiova, România",
+    "locationFull": "Bulevardul Gheorghe Chițu 45\nCraiova, România",
+    "takeMeThere": "Navighează"
+  },
+  "privacyPolicy": {
+    "title": "Politică de Confidențialitate",
+    "lastUpdated": "Ultima actualizare",
+    "s1title": "1. Introducere",
+    "s1p1": "LogiCore (noi, nouă sau al nostru) se angajează să protejeze datele dumneavoastră cu caracter personal. Această Politică de Confidențialitate explică modul în care colectăm, utilizăm, dezvăluim și protejăm informațiile dumneavoastră atunci când utilizați platforma noastră ERP și serviciile asociate.",
+    "s1p2": "Prin accesarea sau utilizarea LogiCore, sunteți de acord cu colectarea și utilizarea informațiilor în conformitate cu această politică. Dacă nu sunteți de acord cu termenii, vă rugăm să încetați utilizarea platformei.",
+    "s2title": "2. Informații pe care le colectăm",
+    "s2intro": "Putem colecta următoarele categorii de date cu caracter personal:",
+    "s2i1": "Date de cont — nume, adresă de email, funcție, denumire companie și hash parolă.",
+    "s2i2": "Date de utilizare — adrese IP, tip browser, pagini vizitate, timp petrecut și jurnale de interacțiune.",
+    "s2i3": "Date operaționale — înregistrări flotă, fluxuri de aprobare, metadate documente și înregistrări bugetare create în platformă.",
+    "s2i4": "Date de comunicare — mesaje transmise prin formularul de contact sau canalele de suport.",
+    "s3title": "3. Modul în care utilizăm informațiile",
+    "s3intro": "Utilizăm datele colectate pentru:",
+    "s3i1": "Furnizarea, menținerea și îmbunătățirea platformei LogiCore.",
+    "s3i2": "Autentificarea utilizatorilor și gestionarea permisiunilor de acces.",
+    "s3i3": "Transmiterea notificărilor tranzacționale (ex: actualizări aprobări, alerte sistem).",
+    "s3i4": "Analiza tiparelor de utilizare pentru îmbunătățirea performanței platformei.",
+    "s3i5": "Respectarea obligațiilor legale conform legislației române și europene.",
+    "s4title": "4. Temeiul legal al prelucrării (GDPR)",
+    "s4p1": "Dacă vă aflați în Spațiul Economic European, prelucrăm datele dumneavoastră cu caracter personal în baza următoarelor temeiuri legale: necesitatea executării unui contract, interesele noastre legitime, respectarea obligațiilor legale și, acolo unde este necesar, consimțământul dumneavoastră explicit.",
+    "s5title": "5. Retenția datelor",
+    "s5p1": "Păstrăm datele cu caracter personal atât timp cât contul dumneavoastră este activ sau cât este necesar pentru furnizarea serviciilor. Înregistrările operaționale pot fi păstrate până la 7 ani pentru a respecta reglementările contabile și de audit din România. Puteți solicita ștergerea datelor dumneavoastră în orice moment, sub rezerva cerințelor legale de retenție aplicabile.",
+    "s6title": "6. Partajarea datelor",
+    "s6p1": "Nu vindem datele dumneavoastră cu caracter personal. Putem partaja date cu furnizori de servicii terți de încredere care ne asistă în operarea platformei (ex: găzduire cloud, analiză), în baza unor acorduri stricte de prelucrare a datelor. Putem dezvălui date și atunci când legea o impune sau pentru a proteja drepturile LogiCore sau ale utilizatorilor săi.",
+    "s7title": "7. Securitate",
+    "s7p1": "Implementăm măsuri de securitate standard în industrie, inclusiv criptare TLS în tranzit, criptare AES-256 în repaus, control al accesului bazat pe roluri și audituri de securitate periodice. Nicio metodă de transmitere pe internet nu este 100% sigură; depunem eforturi pentru a proteja datele dumneavoastră prin mijloace acceptabile comercial.",
+    "s8title": "8. Drepturile dumneavoastră",
+    "s8intro": "Conform GDPR și legislației române aplicabile, aveți dreptul de a:",
+    "s8i1": "Accesa datele cu caracter personal pe care le deținem despre dumneavoastră.",
+    "s8i2": "Rectifica datele inexacte sau incomplete.",
+    "s8i3": "Solicita ștergerea datelor (dreptul la uitare) acolo unde este permis de lege.",
+    "s8i4": "Vă opune sau restricționa anumite tipuri de prelucrare.",
+    "s8i5": "Primi datele dumneavoastră într-un format portabil.",
+    "s8i6": "Depune o plângere la Autoritatea Națională de Supraveghere a Prelucrării Datelor cu Caracter Personal (ANSPDCP).",
+    "s9title": "9. Contact",
+    "s9p1": "Pentru orice întrebări legate de confidențialitate sau pentru exercitarea drepturilor dumneavoastră, vă rugăm să contactați Responsabilul nostru cu Protecția Datelor la"
+  },
+  "termsOfService": {
+    "title": "Termeni și Condiții",
+    "lastUpdated": "Ultima actualizare",
+    "s1title": "1. Acceptarea Termenilor",
+    "s1p1": "Prin accesarea sau utilizarea platformei LogiCore (Serviciul), sunteți de acord să respectați acești Termeni și Condiții (Termenii). Dacă utilizați Serviciul în numele unei organizații, declarați că aveți autoritatea de a angaja acea organizație prin acești Termeni.",
+    "s1p2": "Ne rezervăm dreptul de a modifica acești Termeni în orice moment. Utilizarea continuă a Serviciului după modificări constituie acceptarea Termenilor revizuiți.",
+    "s2title": "2. Descrierea Serviciului",
+    "s2p1": "LogiCore este o platformă ERP care oferă management de flotă, automatizare fluxuri de lucru, management documente și instrumente de control bugetar. Serviciul este furnizat pe bază de abonament, cu niveluri descrise pe pagina noastră de Prețuri.",
+    "s3title": "3. Înregistrarea Contului",
+    "s3p1": "Trebuie să creați un cont pentru a accesa Serviciul. Sunteți responsabil pentru menținerea confidențialității credențialelor și pentru toate activitățile desfășurate prin contul dumneavoastră. Sunteți de acord să ne notificați imediat cu privire la orice acces neautorizat.",
+    "s3p2": "Conturile nu pot fi partajate între persoane. Fiecare utilizator trebuie să aibă propriile credențiale. Sunteți de acord să furnizați informații exacte, actuale și complete la înregistrare.",
+    "s4title": "4. Utilizare Acceptabilă",
+    "s4intro": "Sunteți de acord să nu:",
+    "s4i1": "Utilizați Serviciul în scopuri ilegale sau cu încălcarea acestor Termeni.",
+    "s4i2": "Încercați să obțineți acces neautorizat la orice parte a Serviciului sau a infrastructurii acestuia.",
+    "s4i3": "Supuneți inginerie inversă, decompilați sau dezasamblați orice componentă a Serviciului.",
+    "s4i4": "Încărcați cod malițios, viruși sau orice conținut care ar putea dăuna Serviciului sau altor utilizatori.",
+    "s4i5": "Utilizați instrumente automatizate pentru a extrage date din platformă fără consimțământ prealabil scris.",
+    "s5title": "5. Abonament și Facturare",
+    "s5p1": "Tarifele de abonament sunt percepute lunar, conform planului ales. Toate tarifele sunt exclusive de TVA, care va fi aplicat la cota românească în vigoare. Abonamentele se reînnoiesc automat dacă nu sunt anulate cu cel puțin 7 zile înainte de data următoarei facturi.",
+    "s5p2": "Ne rezervăm dreptul de a modifica prețurile cu 30 de zile preaviz. Rambursările sunt disponibile în termen de 14 zile de la subscrierea inițială, cu condiția ca nu mai mult de 50 de înregistrări operaționale să fi fost procesate.",
+    "s6title": "6. Proprietate Intelectuală",
+    "s6p1": "Tot conținutul, funcționalitățile și caracteristicile Serviciului — inclusiv, fără a se limita la, software, text, grafică, logo-uri și modele de date — sunt proprietatea exclusivă a LogiCore și sunt protejate de legislația română și internațională privind proprietatea intelectuală.",
+    "s6p2": "Păstrați dreptul de proprietate asupra tuturor datelor pe care le introduceți în Serviciu. Prin utilizarea Serviciului, acordați LogiCore o licență limitată, neexclusivă, de a procesa acele date exclusiv pentru furnizarea Serviciului.",
+    "s7title": "7. Date și Confidențialitate",
+    "s7p1": "Utilizarea Serviciului este reglementată și de Politica noastră de Confidențialitate. Prelucrăm datele cu caracter personal în conformitate cu GDPR și legislația română privind protecția datelor (Legea nr. 190/2018).",
+    "s7see": "Citiți",
+    "s7link": "Politica de Confidențialitate",
+    "s8title": "8. Disponibilitatea Serviciului",
+    "s8p1": "Țintim o disponibilitate de 99,9% pentru Serviciu. Ferestrele de mentenanță planificate vor fi comunicate cu cel puțin 24 de ore înainte. Nu vom fi răspunzători pentru indisponibilitatea cauzată de evenimente de forță majoră, inclusiv dezastre naturale, război sau defecțiuni de infrastructură în afara controlului nostru rezonabil.",
+    "s9title": "9. Limitarea Răspunderii",
+    "s9p1": "În măsura maximă permisă de legea aplicabilă, LogiCore nu va fi răspunzător pentru daune indirecte, incidentale, speciale, consecutive sau punitive care decurg din utilizarea sau imposibilitatea de a utiliza Serviciul. Răspunderea noastră agregată pentru orice pretenție nu va depăși totalul taxelor plătite de dumneavoastră în cele trei luni anterioare pretenției.",
+    "s10title": "10. Reziliere",
+    "s10p1": "Oricare dintre părți poate rezilia abonamentul cu 30 de zile preaviz scris. Putem suspenda sau rezilia accesul imediat în cazul încălcării acestor Termeni. La reziliere, puteți exporta datele timp de 30 de zile înainte ca acestea să fie șterse în siguranță din sistemele noastre.",
+    "s11title": "11. Legea Aplicabilă",
+    "s11p1": "Acești Termeni sunt guvernați de legislația română. Orice litigii decurgând din sau în legătură cu acești Termeni vor fi supuse jurisdicției exclusive a instanțelor din Craiova, România.",
+    "s12title": "12. Contact",
+    "s12p1": "Pentru întrebări privind acești Termeni, vă rugăm să ne contactați la"
   },
   "footer": {
-    "copyright": "© {year} LogiCore. Toate drepturile rezervate."
+    "copyright": "© {year} LogiCore. Toate drepturile rezervate.",
+    "privacy": "Politică de Confidențialitate",
+    "terms": "Termeni și Condiții",
+    "contact": "Contact"
   }
 }
