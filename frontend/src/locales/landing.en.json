@@ -116,7 +116,6 @@
   },
   "modules": {
     "title": "Every Module, Built In.",
-    "subtitle": "LogiCore ships with everything your organization needs — no third-party integrations required.",
     "items": [
       {
         "icon": "FiGitBranch",

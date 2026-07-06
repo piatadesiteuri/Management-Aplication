@@ -48,7 +48,6 @@ export default function ModulesSection() {
           >
             {modules.title}
           </h2>
-          <p className="mt-3 text-base text-[#c2c6d8]">{modules.subtitle}</p>
         </motion.div>
 
         {/* items-start prevents grid row height equalization from making other cards stretch */}
@@ -90,39 +89,39 @@ export default function ModulesSection() {
                   {() => (
                     <>
                       <ExpandableTrigger>
-                        <div className="flex items-center gap-3 px-4 py-3.5">
+                        <div className="flex items-center gap-3.5 px-5 py-5">
                           {/* Icon badge */}
                           <div
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
                             style={{ background: `${accent}18`, color: accent }}
                           >
-                            <Icon className="h-[15px] w-[15px]" />
+                            <Icon className="h-[18px] w-[18px]" />
                           </div>
 
-                          <span className="flex-1 text-[13px] font-medium leading-snug text-[#d0dcf4]">
+                          <span className="flex-1 text-[15px] font-medium leading-snug text-[#d0dcf4]">
                             {mod.title}
                           </span>
 
                           <FiChevronDown
-                            className="h-3.5 w-3.5 shrink-0 text-[#5a6478] transition-transform duration-300"
+                            className="h-4 w-4 shrink-0 text-[#5a6478] transition-transform duration-300"
                             style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
                           />
                         </div>
                       </ExpandableTrigger>
 
                       <ExpandableContent preset="fade">
-                        <div className="border-t px-4 pb-4 pt-3" style={{ borderColor: `${accent}22` }}>
-                          <p className="text-[11px] leading-[1.6] text-[#8c97b0]">
+                        <div className="border-t px-5 pb-5 pt-4" style={{ borderColor: `${accent}22` }}>
+                          <p className="text-[13px] leading-[1.65] text-[#8c97b0]">
                             {mod.description}
                           </p>
-                          <ul className="mt-3 space-y-2">
+                          <ul className="mt-4 space-y-2.5">
                             {mod.features.map((f) => (
                               <li key={f} className="flex items-start gap-2">
                                 <FiCheck
-                                  className="mt-[1px] h-3 w-3 shrink-0"
+                                  className="mt-[2px] h-3.5 w-3.5 shrink-0"
                                   style={{ color: accent }}
                                 />
-                                <span className="text-[11px] leading-[1.5] text-[#6b7894]">{f}</span>
+                                <span className="text-[13px] leading-[1.5] text-[#6b7894]">{f}</span>
                               </li>
                             ))}
                           </ul>
