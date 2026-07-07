@@ -42,8 +42,8 @@ export default function ContactForm() {
           style={{ background: 'rgba(4, 14, 31, 0.75)' }}
           onClick={close}
         >
-          <div className="pointer-events-none absolute left-1/4 top-1/4 h-96 w-96 rounded-full bg-[#0066ff]/10 blur-[120px]" />
-          <div className="pointer-events-none absolute bottom-1/4 right-1/4 h-80 w-80 rounded-full bg-[#24ffcd]/8 blur-[100px]" />
+          <div className="pointer-events-none absolute left-1/4 top-1/4 h-96 w-96 rounded-full bg-[#0066ff]/20 blur-[120px]" />
+          <div className="pointer-events-none absolute bottom-1/4 right-1/4 h-80 w-80 rounded-full bg-[#24ffcd]/15 blur-[100px]" />
 
           <motion.div
             initial={{ opacity: 0, y: 32, scale: 0.96 }}
@@ -51,7 +51,7 @@ export default function ContactForm() {
             exit={{ opacity: 0, y: 20, scale: 0.96 }}
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             onClick={e => e.stopPropagation()}
-            className="relative flex w-full max-w-4xl overflow-hidden rounded-3xl border border-white/[0.08] shadow-[0_32px_80px_rgba(0,0,0,0.5)]"
+            className="relative flex w-full max-w-5xl overflow-hidden rounded-3xl border border-white/[0.08] shadow-[0_32px_80px_rgba(0,0,0,0.5)]"
             style={{
               background: 'rgba(17, 28, 45, 0.55)',
               backdropFilter: 'blur(32px)',
@@ -69,7 +69,7 @@ export default function ContactForm() {
             </button>
 
             {/* ── LEFT PANEL ── */}
-            <div className="flex w-72 shrink-0 flex-col justify-between border-r border-white/[0.06] bg-white/[0.02] px-8 py-10">
+            <div className="flex w-80 shrink-0 flex-col justify-between border-r border-white/[0.06] bg-white/[0.02] px-8 py-10">
               <div>
                 <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl border border-[#b3c5ff]/20 bg-[#b3c5ff]/10">
                   <Mail className="h-5 w-5 text-[#b3c5ff]" />

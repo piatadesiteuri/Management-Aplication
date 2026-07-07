@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import Navbar from '../components/landing/Navbar';
 import Footer from '../components/landing/Footer';
 import { LandingLanguageProvider } from '../components/landing/LanguageContext';
@@ -76,6 +77,7 @@ function PrivacyPolicyContent() {
 }
 
 export default function PrivacyPolicyPage() {
+  useEffect(() => { window.scrollTo(0, 0); }, []);
   return (
     <LandingLanguageProvider>
       <ContactFormProvider>
