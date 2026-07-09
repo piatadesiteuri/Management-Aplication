@@ -631,8 +631,7 @@ export const PatientController = {
       return res.status(500).json({ message: 'Eroare la încărcarea transferurilor' });
     }
   },
-
-  // --- Scheduling Service ---
+ // --- Scheduling Service ---
   listResources: async (req: Request, res: Response) => {
     try {
       const { type, departmentId, isActive } = req.query as any;
@@ -654,7 +653,7 @@ export const PatientController = {
         `,
         params
       );
-      return res.json(rows);
+      return res.json({ resources: rows });
     } catch (error) {
       console.error('Error listing resources:', error);
       return res.status(500).json({ message: 'Eroare la încărcarea resurselor' });

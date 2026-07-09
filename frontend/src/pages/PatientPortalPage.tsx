@@ -77,7 +77,7 @@ export default function PatientPortalPage() {
 
   // Scheduling (self-service)
   const [resources, setResources] = useState<any[]>([]);
-  const [serviceType, setServiceType] = useState<'AMBULATORIU' | 'LABORATOR' | 'IMAGISTICA'>('AMBULATORIU');
+  const [serviceType, setServiceType] = useState<'MEDIC' | 'EQUIPMENT' | 'CABINET'>('EQUIPMENT');
   const [resourceId, setResourceId] = useState<number | ''>('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
@@ -98,10 +98,14 @@ export default function PatientPortalPage() {
   };
 
   const loadResources = async () => {
-    const res = await api.get('/portal/resources', { params: { isActive: 1 } });
-    setResources(res.data?.resources || []);
-  };
-
+  const res = await api.get('/portal/resources', { 
+    params: { 
+      isActive: 1,
+      type: serviceType 
+    } 
+  });
+  setResources(res.data?.resources || []);
+};
   const loadDossier = async (patientId: number) => {
     try {
       setLoadingDossier(true);
@@ -124,9 +128,11 @@ export default function PatientPortalPage() {
 
   useEffect(() => {
     void loadMyPatients();
-    void loadResources();
   }, []);
 
+  useEffect(() => {
+   void loadResources();
+  }, [serviceType]);
   useEffect(() => {
     if (!selectedPatientId) return;
     void loadDossier(selectedPatientId);
@@ -398,9 +404,9 @@ export default function PatientPortalPage() {
                       <FormControl>
                         <FormLabel>Tip serviciu</FormLabel>
                         <Select value={serviceType} onChange={(e) => setServiceType(e.target.value as any)}>
-                          <option value="AMBULATORIU">Ambulatoriu</option>
-                          <option value="LABORATOR">Laborator</option>
-                          <option value="IMAGISTICA">Imagistică</option>
+                          <option value="EQUIPMENT">Echipament</option>
+                          <option value="CABINET">Cabinet</option>
+                          <option value="MEDIC">Medic</option>
                         </Select>
                       </FormControl>
                       <FormControl>
