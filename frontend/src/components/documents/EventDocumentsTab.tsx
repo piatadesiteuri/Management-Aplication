@@ -288,8 +288,8 @@ export default function EventDocumentsTab({ }: EventDocumentsTabProps) {
   };
 
 
-  const getEventTypeIcon = (type: string) => {
-    switch (type.toLowerCase()) {
+  const getEventTypeIcon = (type?: string) => {
+    switch (type?.toLowerCase()) {
       case 'transport':
         return FiUsers;
       case 'medical':
