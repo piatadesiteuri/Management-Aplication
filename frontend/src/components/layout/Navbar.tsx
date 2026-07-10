@@ -78,6 +78,7 @@ interface NavItem {
   badge?: string
   adminOnly?: boolean
   requiredPermissions?: string[]
+  requiredRoles?: string[];
 }
 
 // Animații
@@ -146,11 +147,12 @@ const NAV_ITEMS: Array<NavItem> = [
     requiredPermissions: ['vehicles.view'],
   },
   {
-    label: 'Trasabilitate',
-    href: '/admin/traceability',
-    icon: FiShield,
-    requiredPermissions: ['traceability.view'],
-  },
+  label: 'Trasabilitate',
+  href: '/admin/traceability',
+  icon: FiShield,
+  requiredRoles: ['SUPER_ADMIN', 'DEPARTMENT_ADMIN'],
+  requiredPermissions: ['traceability.view'],
+},
   {
     label: 'Gestiune Stocuri',
     icon: FiPackage,

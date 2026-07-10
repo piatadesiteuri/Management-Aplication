@@ -40,7 +40,7 @@ import {
   FiX,
 } from 'react-icons/fi';
 import { useAuth } from '../hooks/useAuth';
-
+import api from '../services/api';
 interface ProfileFormData {
   first_name: string;
   last_name: string;
@@ -96,8 +96,20 @@ export default function UserProfile() {
   const handleProfileSave = async () => {
     setLoading(true);
     try {
-      // Simulez salvarea
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await api.put('/auth/profile', {
+        firstName: profileData.first_name,
+        lastName: profileData.last_name,
+});
+      if (response.status === 200) {
+        const updatedUser = {
+          ...user,
+          first_name: profileData.first_name,
+          last_name: profileData.last_name,
+        };
+
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+      }
+
       setIsEditing(false);
       toast({
         title: 'Profil actualizat!',
@@ -118,7 +130,6 @@ export default function UserProfile() {
       setLoading(false);
     }
   };
-
   const handlePasswordChange = async () => {
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       toast({
@@ -133,25 +144,30 @@ export default function UserProfile() {
 
     setLoading(true);
     try {
-      // Simulez schimbarea parolei
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setIsChangingPassword(false);
-      setPasswordData({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
+      const response = await api.put('/auth/change-password', {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
       });
-      toast({
-        title: 'Parolă schimbată!',
-        description: 'Parola ta a fost actualizată cu succes.',
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
+
+      if (response.status === 200 || response.data.success) {
+        setIsChangingPassword(false);
+        setPasswordData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
+        toast({
+          title: 'Parolă schimbată!',
+          description: 'Parola ta a fost actualizată cu succes.',
+          status: 'success',
+          duration: 3000,
+          isClosable: true,
+        });
+      }
     } catch (error) {
       toast({
         title: 'Eroare!',
-        description: 'Nu s-a putut schimba parola.',
+        description: 'Parola curentă este incorectă sau a apărut o eroare.',
         status: 'error',
         duration: 3000,
         isClosable: true,

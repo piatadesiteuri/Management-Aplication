@@ -2,6 +2,7 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 
+
 // Definim maparea rolurilor la rute
 const ROLE_ROUTES: Record<string, string> = {
   ADMIN: '/admin/dashboard',

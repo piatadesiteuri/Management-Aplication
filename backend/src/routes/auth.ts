@@ -28,6 +28,8 @@ interface LoginRequest {
 // Rute publice
 router.post('/register', registerValidation, AuthController.register);
 router.post('/login', AuthController.login);
+router.put('/profile', authenticate, AuthController.updateProfile);
+router.put('/change-password', authenticate, AuthController.changePassword);
 router.post('/refresh-token', AuthController.refreshToken);
 router.post('/logout', AuthController.logout);
 router.post('/verify-email', AuthController.verifyEmail);

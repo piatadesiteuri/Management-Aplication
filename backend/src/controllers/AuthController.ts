@@ -1363,18 +1363,21 @@ export const AuthController = {
     },
 
     // Actualizare profil utilizator (date personale)
+   // Actualizare profil utilizator (date personale)
     updateProfile: async (req: Request, res: Response) => {
         try {
             const userId = req.user!.id;
-            const { firstName, lastName, email } = req.body;
+            const firstName = req.body.firstName || req.body.first_name;
+            const lastName = req.body.lastName || req.body.last_name;
+            const email = req.body.email;
 
             const conn = await pool.getConnection();
             await conn.beginTransaction();
 
             try {
                 await conn.execute(
-                    'UPDATE users SET first_name = ?, last_name = ?, email = ? WHERE id = ?',
-                    [firstName, lastName, email, userId]
+                    'UPDATE users SET first_name = COALESCE(?, first_name), last_name = COALESCE(?, last_name), email = COALESCE(?, email) WHERE id = ?',
+                    [firstName || null, lastName || null, email || null, userId]
                 );
 
                 await conn.commit();
