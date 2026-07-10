@@ -689,13 +689,7 @@ export default function UserLayout({ children }: UserLayoutProps) {
                   >
                     Profil
                   </MenuItem>
-                  <MenuItem 
-                    icon={<FiSettings />} 
-                    onClick={() => navigate('/user/settings')}
-                    _hover={{ bg: gray50 }}
-                  >
-                    Setări
-                  </MenuItem>
+                  
                   <MenuDivider />
                   <MenuItem 
                     icon={<FiLogOut />} 
