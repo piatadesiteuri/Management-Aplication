@@ -835,7 +835,7 @@ export default function Navbar() {
                     </Box>
                   ) : (
                     /* Debug info - doar pentru development, ascunde în producție */
-                    process.env.NODE_ENV === 'development' && (
+                    import.meta.env.DEV && (
                       <Box p={3} bg={useColorModeValue('yellow.50', 'yellow.900')} borderRadius="md" mb={4}>
                         <Text fontSize="sm" color={useColorModeValue('yellow.800', 'yellow.200')} fontWeight="bold">
                           🔍 Debug Info:

@@ -593,13 +593,18 @@ export default function UserLayout({ children }: UserLayoutProps) {
                             borderColor={borderColor}
                             fontWeight={isUnread ? 'bold' : 'normal'}
                             cursor="pointer"
+                            opacity={isUnread ? 1 : 0.6}
                             _hover={{ 
                               bg: hoverBg,
                               transform: 'translateY(-2px)',
                               boxShadow: 'lg',
-                              transition: 'all 0.2s'
+                              transition: 'all 0.2s',
+                              opacity: 1
                             }}
-                            onClick={() => handleNotificationClick(notif)}
+                            onClick={() => {
+                              if (isUnread) handleMarkAsRead(notif.id);
+                              handleNotificationClick(notif);
+                            }}
                             position="relative"
                           >
                             <HStack spacing={2} align="start">
@@ -611,6 +616,7 @@ export default function UserLayout({ children }: UserLayoutProps) {
                                   borderRadius="full"
                                   flexShrink={0}
                                   mt={1}
+                                  visibility={isUnread ? 'visible' : 'hidden'}
                                 />
                               )}
                               <VStack align="start" spacing={1} flex={1}>

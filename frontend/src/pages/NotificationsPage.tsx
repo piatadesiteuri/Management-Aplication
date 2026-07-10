@@ -192,10 +192,13 @@ const NotificationsPage: React.FC = () => {
   };
 
   const handleNotificationClick = (notification: Notification) => {
-    setSelectedNotification(notification);
+    setSelectedNotification({ ...notification, status: 'read' });
     onModalOpen();
+    
+    if (notification.status === 'unread') {
+      handleMarkAsRead(notification.id);
+    }
   };
-
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'alert':
@@ -397,7 +400,7 @@ const NotificationsPage: React.FC = () => {
           ) : (
             // Notificări
             notifications.map((notification) => (
-              <Card
+             <Card
                 key={notification.id}
                 bg={getNotificationBg(notification.type, notification.status)}
                 boxShadow="md"
@@ -405,6 +408,7 @@ const NotificationsPage: React.FC = () => {
                 borderColor={getNotificationColor(notification.type, notification.status)}
                 borderRadius="lg"
                 cursor="pointer"
+                opacity={notification.status === 'read' ? 0.5 : 1}
                 transition="all 0.2s"
                 _hover={{
                   transform: 'translateY(-1px)',
@@ -432,7 +436,7 @@ const NotificationsPage: React.FC = () => {
                         <HStack spacing={2}>
                           <Badge
                             size="sm"
-                            colorScheme={notification.type === 'alert' ? 'orange' : notification.type === 'assignment' ? 'green' : 'blue'}
+                            colorScheme={notification.status === 'read' ? 'gray' : (notification.type === 'alert' ? 'orange' : notification.type === 'assignment' ? 'green' : 'blue')}
                             variant="subtle"
                           >
                             {notification.type === 'alert' ? 'Alertă' : 
