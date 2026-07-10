@@ -23,9 +23,11 @@ import {
   Checkbox,
   Divider,
   useColorModeValue,
+  useDisclosure,
 } from '@chakra-ui/react';
 import { FaSearch, FaTimes, FaPlus } from 'react-icons/fa';
 import api from '../../services/api';
+import CreatePatientModal from '../patients/CreatePatientModal';
 
 type Patient = {
   id: number;
@@ -95,7 +97,8 @@ export default function CreateAnalysisRequestModal({
   const [selectedTests, setSelectedTests] = useState<number[]>([]);
   const [receptionType, setReceptionType] = useState<'WITH_RECEPTION' | 'WITH_LABELING' | 'WITHOUT_RECEPTION'>('WITHOUT_RECEPTION');
   const toast = useToast();
-  
+  const { isOpen: isNewPatientOpen, onOpen: onNewPatientOpen, onClose: onNewPatientClose } = useDisclosure();
+
   // Culori pentru tema întunecată
   const bgColor = useColorModeValue('white', 'gray.800');
   const cardBg = useColorModeValue('blue.50', 'gray.700');
@@ -198,8 +201,23 @@ export default function CreateAnalysisRequestModal({
     try {
       setSearchingPatient(true);
       const response = await api.get(`/patients?search=${encodeURIComponent(patientSearch)}`);
-      // Handle both response formats
-      const patientsData = response.data.patients || (Array.isArray(response.data) ? response.data : []);
+      
+      console.log("Răspuns API pacienți:", response.data);
+      
+      let patientsData: Patient[] = [];
+      if (Array.isArray(response.data)) {
+        patientsData = response.data;
+      } else if (response.data?.patients && Array.isArray(response.data.patients)) {
+        patientsData = response.data.patients;
+      } else if (response.data?.data && Array.isArray(response.data.data)) {
+        patientsData = response.data.data;
+      } else if (response.data?.items && Array.isArray(response.data.items)) {
+        patientsData = response.data.items;
+      } else {
+        const possibleArray = Object.values(response.data || {}).find(v => Array.isArray(v));
+        if (possibleArray) patientsData = possibleArray as Patient[];
+      }
+
       setPatients(patientsData);
       
       if (patientsData.length === 0) {
@@ -311,231 +329,188 @@ export default function CreateAnalysisRequestModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} size="xl" scrollBehavior="inside">
-      <ModalOverlay />
-      <ModalContent bg={bgColor}>
-        <ModalHeader>
-          {step === 1 && 'Căutare Pacient'}
-          {step === 2 && 'Detalii Cerere și Selectare Teste'}
-        </ModalHeader>
-        <ModalCloseButton />
-        <ModalBody>
-          {step === 1 && (
-            <VStack spacing={4} align="stretch">
-              <FormControl>
-                <FormLabel>Căutare pacient (nume, CNP, etc.)</FormLabel>
-                <HStack>
-                  <Input
-                    value={patientSearch}
-                    onChange={(e) => setPatientSearch(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && searchPatients()}
-                    placeholder="Introduceți nume sau CNP..."
-                  />
-                  <Button
-                    leftIcon={<FaSearch />}
-                    onClick={searchPatients}
-                    isLoading={searchingPatient}
-                  >
-                    Caută
-                  </Button>
-                </HStack>
-              </FormControl>
+    <>
+      <Modal isOpen={isOpen} onClose={handleClose} size="xl" scrollBehavior="inside">
+        <ModalOverlay />
+        <ModalContent bg={bgColor}>
+          <ModalHeader>
+            {step === 1 && 'Căutare Pacient'}
+            {step === 2 && 'Detalii Cerere și Selectare Teste'}
+          </ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            {step === 1 && (
+              <VStack spacing={4} align="stretch">
+                <FormControl>
+                  <FormLabel>Căutare pacient (nume, CNP, etc.)</FormLabel>
+                  <HStack>
+                    <Input
+                      value={patientSearch}
+                      onChange={(e) => setPatientSearch(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && searchPatients()}
+                      placeholder="Introduceți nume sau CNP..."
+                    />
+                    <Button
+                      leftIcon={<FaSearch />}
+                      onClick={searchPatients}
+                      isLoading={searchingPatient}
+                    >
+                      Caută
+                    </Button>
+                  </HStack>
+                </FormControl>
 
-              {patients.length > 0 && (
-                <Box>
-                  <Text fontWeight="semibold" mb={2}>Rezultate căutare:</Text>
-                  <VStack align="stretch" spacing={2} maxH="300px" overflowY="auto">
-                    {patients.map((patient) => (
-                      <Box
-                        key={patient.id}
-                        p={3}
-                        border="1px"
-                        borderColor="gray.200"
-                        borderRadius="md"
-                        cursor="pointer"
-                        _hover={{ bg: 'gray.50' }}
-                        onClick={() => handleSelectPatient(patient)}
-                      >
-                        <Text fontWeight="medium">
-                          {patient.first_name} {patient.last_name}
-                        </Text>
-                        <Text fontSize="sm" color="gray.600">
-                          CNP: {patient.identity_number}
-                          {patient.date_of_birth && ` | ${new Date(patient.date_of_birth).toLocaleDateString('ro-RO')}`}
-                        </Text>
-                      </Box>
-                    ))}
-                  </VStack>
-                </Box>
-              )}
-
-              {selectedPatient && (
-                <Box p={3} bg="blue.50" borderRadius="md">
-                  <Text fontWeight="semibold">Pacient selectat:</Text>
-                  <Text>
-                    {selectedPatient.first_name} {selectedPatient.last_name} ({selectedPatient.identity_number})
-                  </Text>
-                </Box>
-              )}
-
-              <HStack spacing={2}>
-                <Button
-                  colorScheme="blue"
-                  onClick={() => {
-                    // Navigare către pagina de adăugare pacient nou
-                    window.open('/admin/patients?action=add', '_blank');
-                  }}
-                  variant="outline"
-                >
-                  Adaugă pacient nou
-                </Button>
-                {selectedPatient && (
-                  <Button
-                    colorScheme="green"
-                    onClick={() => {
-                      // Navigare către pagina de editare pacient
-                      window.open(`/admin/patients?id=${selectedPatient.id}`, '_blank');
-                    }}
-                    variant="outline"
-                  >
-                    Actualizează date pacient
-                  </Button>
-                )}
-              </HStack>
-            </VStack>
-          )}
-
-          {step === 2 && selectedPatient && (
-            <VStack spacing={4} align="stretch">
-              <Box p={3} bg={cardBg} borderRadius="md" border="1px" borderColor={borderColor}>
-                <HStack justify="space-between">
+                {patients.length > 0 && (
                   <Box>
-                    <Text fontWeight="semibold" color={textColor}>Pacient selectat:</Text>
-                    <Text color={textColor}>
+                    <Text fontWeight="semibold" mb={2}>Rezultate căutare:</Text>
+                    <VStack align="stretch" spacing={2} maxH="300px" overflowY="auto">
+                      {patients.map((patient) => (
+                        <Box
+                          key={patient.id}
+                          p={3}
+                          border="1px"
+                          borderColor="gray.200"
+                          borderRadius="md"
+                          cursor="pointer"
+                          _hover={{ bg: 'gray.50' }}
+                          onClick={() => handleSelectPatient(patient)}
+                        >
+                          <Text fontWeight="medium">
+                            {patient.first_name} {patient.last_name}
+                          </Text>
+                          <Text fontSize="sm" color="gray.600">
+                            CNP: {patient.identity_number}
+                            {patient.date_of_birth && ` | ${new Date(patient.date_of_birth).toLocaleDateString('ro-RO')}`}
+                          </Text>
+                        </Box>
+                      ))}
+                    </VStack>
+                  </Box>
+                )}
+
+                {selectedPatient && (
+                  <Box p={3} bg="blue.50" borderRadius="md">
+                    <Text fontWeight="semibold">Pacient selectat:</Text>
+                    <Text>
                       {selectedPatient.first_name} {selectedPatient.last_name} ({selectedPatient.identity_number})
                     </Text>
-                    {selectedPatient.date_of_birth && (
-                      <Text fontSize="sm" color={secondaryTextColor}>
-                        Data nașterii: {new Date(selectedPatient.date_of_birth).toLocaleDateString('ro-RO')}
-                      </Text>
-                    )}
                   </Box>
+                )}
+
+                <HStack spacing={2}>
                   <Button
-                    size="sm"
                     colorScheme="blue"
+                    onClick={onNewPatientOpen}
                     variant="outline"
-                    onClick={() => {
-                      window.open(`/admin/patients?id=${selectedPatient.id}`, '_blank');
-                    }}
                   >
-                    Verifică/Actualizează date
+                    Adaugă pacient nou
                   </Button>
+                  {selectedPatient && (
+                    <Button
+                      colorScheme="green"
+                      onClick={() => {
+                        const basePath = window.location.pathname.startsWith('/admin') ? '/admin' : '/user';
+                        window.open(`${basePath}/patients?id=${selectedPatient.id}`, '_blank');
+                      }}
+                      variant="outline"
+                    >
+                      Actualizează date pacient
+                    </Button>
+                  )}
                 </HStack>
-              </Box>
+              </VStack>
+            )}
 
-              <FormControl isRequired>
-                <FormLabel color={textColor}>Laborator *</FormLabel>
-                <Select
-                  value={selectedLaboratory}
-                  onChange={(e) => setSelectedLaboratory(parseInt(e.target.value) || '')}
-                  placeholder="Selectați laboratorul"
-                  bg={bgColor}
-                  color={textColor}
-                  borderColor={borderColor}
-                >
-                  {laboratories.map((lab) => (
-                    <option key={lab.id} value={lab.id}>
-                      {lab.name}
-                    </option>
-                  ))}
-                </Select>
-              </FormControl>
+            {step === 2 && selectedPatient && (
+              <VStack spacing={4} align="stretch">
+                <Box p={3} bg={cardBg} borderRadius="md" border="1px" borderColor={borderColor}>
+                  <HStack justify="space-between">
+                    <Box>
+                      <Text fontWeight="semibold" color={textColor}>Pacient selectat:</Text>
+                      <Text color={textColor}>
+                        {selectedPatient.first_name} {selectedPatient.last_name} ({selectedPatient.identity_number})
+                      </Text>
+                      {selectedPatient.date_of_birth && (
+                        <Text fontSize="sm" color={secondaryTextColor}>
+                          Data nașterii: {new Date(selectedPatient.date_of_birth).toLocaleDateString('ro-RO')}
+                        </Text>
+                      )}
+                    </Box>
+                  <Button
+                      size="sm"
+                      colorScheme="blue"
+                      variant="outline"
+                      onClick={() => {
+                        const basePath = window.location.pathname.startsWith('/admin') ? '/admin' : '/user';
+                        window.open(`${basePath}/patients?id=${selectedPatient.id}`, '_blank');
+                      }}
+                    >
+                      Verifică/Actualizează date
+                    </Button>
+                  </HStack>
+                </Box>
 
-              {selectedLaboratory && (
+                <FormControl isRequired>
+                  <FormLabel color={textColor}>Laborator *</FormLabel>
+                  <Select
+                    value={selectedLaboratory}
+                    onChange={(e) => setSelectedLaboratory(parseInt(e.target.value) || '')}
+                    placeholder="Selectați laboratorul"
+                    bg={bgColor}
+                    color={textColor}
+                    borderColor={borderColor}
+                  >
+                    {laboratories.map((lab) => (
+                      <option key={lab.id} value={lab.id}>
+                        {lab.name}
+                      </option>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                {selectedLaboratory && (
+                  <FormControl>
+                    <FormLabel color={textColor}>Medic responsabil laborator</FormLabel>
+                    <Select
+                      value={selectedResponsibleDoctor}
+                      onChange={(e) => setSelectedResponsibleDoctor(parseInt(e.target.value) || '')}
+                      placeholder="Selectați medicul responsabil"
+                      bg={bgColor}
+                      color={textColor}
+                      borderColor={borderColor}
+                    >
+                      {laboratoryDoctors.map((doctor) => (
+                        <option key={doctor.id} value={doctor.id}>
+                          {doctor.first_name} {doctor.last_name}
+                          {doctor.is_responsible && ' (Responsabil)'}
+                        </option>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+
                 <FormControl>
-                  <FormLabel color={textColor}>Medic responsabil laborator</FormLabel>
+                  <FormLabel color={textColor}>Medic trimițător (opțional)</FormLabel>
                   <Select
-                    value={selectedResponsibleDoctor}
-                    onChange={(e) => setSelectedResponsibleDoctor(parseInt(e.target.value) || '')}
-                    placeholder="Selectați medicul responsabil"
+                    value={selectedReferringDoctor}
+                    onChange={(e) => setSelectedReferringDoctor(parseInt(e.target.value) || '')}
+                    placeholder="Selectați medicul trimițător"
                     bg={bgColor}
                     color={textColor}
                     borderColor={borderColor}
                   >
-                    {laboratoryDoctors.map((doctor) => (
-                      <option key={doctor.id} value={doctor.id}>
-                        {doctor.first_name} {doctor.last_name}
-                        {doctor.is_responsible && ' (Responsabil)'}
-                      </option>
-                    ))}
-                  </Select>
-                </FormControl>
-              )}
-
-              <FormControl>
-                <FormLabel color={textColor}>Medic trimițător (opțional)</FormLabel>
-                <Select
-                  value={selectedReferringDoctor}
-                  onChange={(e) => setSelectedReferringDoctor(parseInt(e.target.value) || '')}
-                  placeholder="Selectați medicul trimițător"
-                  bg={bgColor}
-                  color={textColor}
-                  borderColor={borderColor}
-                >
-                  <option value="">Niciunul</option>
-                  {/* Aici ar trebui să încărci lista de medici */}
-                </Select>
-              </FormControl>
-
-              <FormControl>
-                <FormLabel color={textColor}>Observații (opțional)</FormLabel>
-                <Textarea
-                  value={observations}
-                  onChange={(e) => setObservations(e.target.value)}
-                  placeholder="Introduceți observații..."
-                  rows={3}
-                  bg={bgColor}
-                  color={textColor}
-                  borderColor={borderColor}
-                  _placeholder={{ color: secondaryTextColor }}
-                />
-              </FormControl>
-
-              <Divider />
-
-              <Box>
-                <Text fontWeight="semibold" mb={3} fontSize="lg" color={textColor}>
-                  Selectare Teste *
-                </Text>
-                <Text fontSize="sm" color={secondaryTextColor} mb={3}>
-                  Selectați testele ce se doresc a fi efectuate, fie prin căutarea acestora după denumire fie prin selectarea din lista de teste și apăsarea butonului Adaugă.
-                </Text>
-
-                <FormControl mb={3}>
-                  <FormLabel color={textColor}>Categorie teste</FormLabel>
-                  <Select
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(parseInt(e.target.value) || '')}
-                    placeholder="Toate categoriile"
-                    bg={bgColor}
-                    color={textColor}
-                    borderColor={borderColor}
-                  >
-                    <option value="">Toate categoriile</option>
-                    {testCategories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
+                    <option value="">Niciunul</option>
+                    {/* Aici ar trebui să încărci lista de medici */}
                   </Select>
                 </FormControl>
 
-                <FormControl mb={3}>
-                  <FormLabel color={textColor}>Căutare test după nume sau cod</FormLabel>
-                  <Input
-                    placeholder="Caută test..."
-                    value={testSearch}
-                    onChange={(e) => setTestSearch(e.target.value)}
+                <FormControl>
+                  <FormLabel color={textColor}>Observații (opțional)</FormLabel>
+                  <Textarea
+                    value={observations}
+                    onChange={(e) => setObservations(e.target.value)}
+                    placeholder="Introduceți observații..."
+                    rows={3}
                     bg={bgColor}
                     color={textColor}
                     borderColor={borderColor}
@@ -543,138 +518,196 @@ export default function CreateAnalysisRequestModal({
                   />
                 </FormControl>
 
+                <Divider />
+
                 <Box>
-                  <Text fontWeight="semibold" mb={2} color={textColor}>
-                    Teste disponibile ({filteredTests.length})
+                  <Text fontWeight="semibold" mb={3} fontSize="lg" color={textColor}>
+                    Selectare Teste *
                   </Text>
-                  <Box maxH="300px" overflowY="auto" border="1px" borderColor={borderColor} borderRadius="md" p={2} bg={bgColor}>
-                    <VStack align="stretch" spacing={2}>
-                      {filteredTests.length === 0 ? (
-                        <Text textAlign="center" color={secondaryTextColor} py={4}>
-                          Nu s-au găsit teste
-                        </Text>
-                      ) : (
-                        filteredTests.map((test) => (
-                          <HStack
-                            key={test.id}
-                            p={2}
-                            border="1px"
-                            borderColor={borderColor}
-                            borderRadius="md"
-                            justify="space-between"
-                            bg={bgColor}
-                            _hover={{ bg: useColorModeValue('gray.50', 'gray.700') }}
-                            style={{ backgroundColor: bgColor }}
-                          >
-                            <Box flex={1}>
-                              <Text fontWeight="medium" color={textColor}>{test.name}</Text>
-                              <Text fontSize="sm" color={secondaryTextColor}>
-                                {test.code} - {test.sample_type}
-                              </Text>
-                            </Box>
-                            {selectedTests.includes(test.id) ? (
-                              <Badge colorScheme="green">Adăugat</Badge>
-                            ) : (
-                              <IconButton
-                                icon={<FaPlus />}
-                                aria-label="Adaugă test"
-                                size="sm"
-                                colorScheme="blue"
-                                onClick={() => handleAddTest(test.id)}
-                              />
-                            )}
-                          </HStack>
-                        ))
-                      )}
-                    </VStack>
+                  <Text fontSize="sm" color={secondaryTextColor} mb={3}>
+                    Selectați testele ce se doresc a fi efectuate, fie prin căutarea acestora după denumire fie prin selectarea din lista de teste și apăsarea butonului Adaugă.
+                  </Text>
+
+                  <FormControl mb={3}>
+                    <FormLabel color={textColor}>Categorie teste</FormLabel>
+                    <Select
+                      value={selectedCategory}
+                      onChange={(e) => setSelectedCategory(parseInt(e.target.value) || '')}
+                      placeholder="Toate categoriile"
+                      bg={bgColor}
+                      color={textColor}
+                      borderColor={borderColor}
+                    >
+                      <option value="">Toate categoriile</option>
+                      {testCategories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </FormControl>
+
+                  <FormControl mb={3}>
+                    <FormLabel color={textColor}>Căutare test după nume sau cod</FormLabel>
+                    <Input
+                      placeholder="Caută test..."
+                      value={testSearch}
+                      onChange={(e) => setTestSearch(e.target.value)}
+                      bg={bgColor}
+                      color={textColor}
+                      borderColor={borderColor}
+                      _placeholder={{ color: secondaryTextColor }}
+                    />
+                  </FormControl>
+
+                  <Box>
+                    <Text fontWeight="semibold" mb={2} color={textColor}>
+                      Teste disponibile ({filteredTests.length})
+                    </Text>
+                    <Box maxH="300px" overflowY="auto" border="1px" borderColor={borderColor} borderRadius="md" p={2} bg={bgColor}>
+                      <VStack align="stretch" spacing={2}>
+                        {filteredTests.length === 0 ? (
+                          <Text textAlign="center" color={secondaryTextColor} py={4}>
+                            Nu s-au găsit teste
+                          </Text>
+                        ) : (
+                          filteredTests.map((test) => (
+                            <HStack
+                              key={test.id}
+                              p={2}
+                              border="1px"
+                              borderColor={borderColor}
+                              borderRadius="md"
+                              justify="space-between"
+                              bg={bgColor}
+                              _hover={{ bg: useColorModeValue('gray.50', 'gray.700') }}
+                              style={{ backgroundColor: bgColor }}
+                            >
+                              <Box flex={1}>
+                                <Text fontWeight="medium" color={textColor}>{test.name}</Text>
+                                <Text fontSize="sm" color={secondaryTextColor}>
+                                  {test.code} - {test.sample_type}
+                                </Text>
+                              </Box>
+                              {selectedTests.includes(test.id) ? (
+                                <Badge colorScheme="green">Adăugat</Badge>
+                              ) : (
+                                <IconButton
+                                  icon={<FaPlus />}
+                                  aria-label="Adaugă test"
+                                  size="sm"
+                                  colorScheme="blue"
+                                  onClick={() => handleAddTest(test.id)}
+                                />
+                              )}
+                            </HStack>
+                          ))
+                        )}
+                      </VStack>
+                    </Box>
                   </Box>
+
+                  {selectedTests.length > 0 && (
+                    <Box mt={4}>
+                      <Text fontWeight="semibold" mb={2} color={textColor}>
+                        Teste selectate ({selectedTests.length})
+                      </Text>
+                      <VStack align="stretch" spacing={2}>
+                        {selectedTests.map((testId) => {
+                          const test = tests.find((t) => t.id === testId);
+                          if (!test) return null;
+                          return (
+                            <HStack
+                              key={testId}
+                              p={2}
+                              bg={selectedTestBg}
+                              borderRadius="md"
+                              justify="space-between"
+                              border="1px"
+                              borderColor={borderColor}
+                            >
+                              <Text color={textColor}>{test.name} ({test.code})</Text>
+                              <IconButton
+                                icon={<FaTimes />}
+                                aria-label="Elimină test"
+                                size="sm"
+                                colorScheme="red"
+                                onClick={() => handleRemoveTest(testId)}
+                              />
+                            </HStack>
+                          );
+                        })}
+                      </VStack>
+                    </Box>
+                  )}
                 </Box>
 
-                {selectedTests.length > 0 && (
-                  <Box mt={4}>
-                    <Text fontWeight="semibold" mb={2} color={textColor}>
-                      Teste selectate ({selectedTests.length})
-                    </Text>
-                    <VStack align="stretch" spacing={2}>
-                      {selectedTests.map((testId) => {
-                        const test = tests.find((t) => t.id === testId);
-                        if (!test) return null;
-                        return (
-                          <HStack
-                            key={testId}
-                            p={2}
-                            bg={selectedTestBg}
-                            borderRadius="md"
-                            justify="space-between"
-                            border="1px"
-                            borderColor={borderColor}
-                          >
-                            <Text color={textColor}>{test.name} ({test.code})</Text>
-                            <IconButton
-                              icon={<FaTimes />}
-                              aria-label="Elimină test"
-                              size="sm"
-                              colorScheme="red"
-                              onClick={() => handleRemoveTest(testId)}
-                            />
-                          </HStack>
-                        );
-                      })}
-                    </VStack>
-                  </Box>
-                )}
-              </Box>
+                <Divider />
 
-              <Divider />
-
-              <FormControl>
-                <FormLabel color={textColor}>Tip recepție</FormLabel>
-                <Select
-                  value={receptionType}
-                  onChange={(e) => setReceptionType(e.target.value as any)}
-                  bg={bgColor}
-                  color={textColor}
-                  borderColor={borderColor}
+                <FormControl>
+                  <FormLabel color={textColor}>Tip recepție</FormLabel>
+                  <Select
+                    value={receptionType}
+                    onChange={(e) => setReceptionType(e.target.value as any)}
+                    bg={bgColor}
+                    color={textColor}
+                    borderColor={borderColor}
+                  >
+                    <option value="WITHOUT_RECEPTION">Fără recepție și etichetare</option>
+                    <option value="WITH_RECEPTION">Cu recepție</option>
+                    <option value="WITH_LABELING">Cu recepție și etichetare</option>
+                  </Select>
+                </FormControl>
+              </VStack>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <HStack>
+              {step > 1 && (
+                <Button onClick={() => setStep(step - 1)}>Înapoi</Button>
+              )}
+              {step === 1 ? (
+                <Button
+                  colorScheme="blue"
+                  onClick={() => {
+                    if (selectedPatient) {
+                      setStep(2);
+                    }
+                  }}
+                  isDisabled={!selectedPatient}
                 >
-                  <option value="WITHOUT_RECEPTION">Fără recepție și etichetare</option>
-                  <option value="WITH_RECEPTION">Cu recepție</option>
-                  <option value="WITH_LABELING">Cu recepție și etichetare</option>
-                </Select>
-              </FormControl>
-            </VStack>
-          )}
-        </ModalBody>
-        <ModalFooter>
-          <HStack>
-            {step > 1 && (
-              <Button onClick={() => setStep(step - 1)}>Înapoi</Button>
-            )}
-            {step === 1 ? (
-              <Button
-                colorScheme="blue"
-                onClick={() => {
-                  if (selectedPatient) {
-                    setStep(2);
-                  }
-                }}
-                isDisabled={!selectedPatient}
-              >
-                Următorul
-              </Button>
-            ) : (
-              <Button
-                colorScheme="green"
-                onClick={handleSubmit}
-                isLoading={loading}
-                isDisabled={!selectedLaboratory || selectedTests.length === 0}
-              >
-                Salvează Cererea
-              </Button>
-            )}
-            <Button onClick={handleClose}>Anulează</Button>
-          </HStack>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
+                  Următorul
+                </Button>
+              ) : (
+                <Button
+                  colorScheme="green"
+                  onClick={handleSubmit}
+                  isLoading={loading}
+                  isDisabled={!selectedLaboratory || selectedTests.length === 0}
+                >
+                  Salvează Cererea
+                </Button>
+              )}
+              <Button onClick={handleClose}>Anulează</Button>
+            </HStack>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      <CreatePatientModal 
+        isOpen={isNewPatientOpen} 
+        onClose={onNewPatientClose} 
+        onSuccess={() => {
+          onNewPatientClose();
+          toast({
+            title: 'Succes',
+            description: 'Pacientul a fost salvat. Îl poți căuta acum în listă.',
+            status: 'success',
+            duration: 3000,
+            isClosable: true,
+          });
+        }} 
+      />
+    </>
   );
 }

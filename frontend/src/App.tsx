@@ -50,8 +50,6 @@ import BudgetExecutionPage from './pages/BudgetExecutionPage';
 import { useAuth } from './hooks/useAuth';
 import { ADMIN_ENTRY_ROLES } from './config/permissions';
 
-// Removed unused ProtectedRoute function
-
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   
@@ -103,7 +101,6 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/verify-email" element={<EmailVerification />} />
           
-          {/* Rute de test pentru dezvoltare */}
           <Route path="/test/vehicles" element={<TestVehicles />} />
           <Route path="/test/suppliers" element={<TestSuppliers />} />
           <Route path="/test/products" element={<TestProducts />} />
@@ -112,7 +109,6 @@ function App() {
           <Route path="/test/settings" element={<TestSettings />} />
           <Route path="/test/reports" element={<TestReports />} />
           
-          {/* Rute pentru utilizatori normali */}
           <Route
             path="/user"
             element={
@@ -145,9 +141,9 @@ function App() {
               <Route path="tests" element={<PermissionRoute requiredPermissions={['lims.view']} fallbackTo="/user/dashboard"><LaboratoryTestsPage /></PermissionRoute>} />
             </Route>
             <Route path="pharmacy" element={<PermissionRoute requiredPermissions={['pharmacy.view']} fallbackTo="/user/dashboard"><PharmacyPage /></PermissionRoute>} />
+            <Route path="patients" element={<PatientsPage />} />
           </Route>
           
-          {/* Rute pentru admin */}
           <Route
             path="/admin"
             element={
@@ -194,7 +190,6 @@ function App() {
             <Route path="budget" element={<PermissionRoute requiredPermissions={['budget.view']} fallbackTo="/admin/dashboard"><BudgetExecutionPage /></PermissionRoute>} />
           </Route>
 
-          {/* Redirecționare bazată pe rol */}
           <Route path="/" element={<NavigateToDashboard />} />
           <Route path="/notifications" element={<Navigate to="/admin/notifications" />} />
         </Routes>
@@ -210,12 +205,10 @@ function NavigateToDashboard() {
     return <Navigate to="/login" />;
   }
   
-  // Dacă este admin, merge la dashboard-ul admin
   if (user.roles.some(role => ADMIN_ENTRY_ROLES.includes(role))) {
     return <Navigate to="/admin/dashboard" />;
   }
   
-  // Altfel merge la dashboard-ul utilizatorului normal
   return <Navigate to="/user/dashboard" />;
 }
 

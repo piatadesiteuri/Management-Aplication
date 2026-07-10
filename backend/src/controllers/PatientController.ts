@@ -125,9 +125,15 @@ export const PatientController = {
       const params: any[] = [];
 
       if (search) {
-        where.push('(p.first_name LIKE ? OR p.last_name LIKE ? OR p.identity_number LIKE ?)');
+        where.push(`(
+          p.first_name LIKE ? OR 
+          p.last_name LIKE ? OR 
+          p.identity_number LIKE ? OR 
+          CONCAT(p.first_name, ' ', p.last_name) LIKE ? OR 
+          CONCAT(p.last_name, ' ', p.first_name) LIKE ?
+        )`);
         const term = `%${search}%`;
-        params.push(term, term, term);
+        params.push(term, term, term, term, term);
       }
 
       const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';

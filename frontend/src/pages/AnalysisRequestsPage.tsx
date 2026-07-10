@@ -251,7 +251,7 @@ export default function AnalysisRequestsPage() {
       // Încarcă cererile DRAFT care nu au recepție sau au reception_type WITHOUT_RECEPTION
       const response = await api.get('/lims/analysis-requests?status=DRAFT');
       const filtered = response.data.filter((req: AnalysisRequest) => 
-        req.reception_type === 'WITHOUT_RECEPTION' || !req.reception_date
+        req.reception_type === 'WITHOUT_RECEPTION' || !req.reception_type
       );
       setReceptionRequests(filtered);
     } catch (error) {
