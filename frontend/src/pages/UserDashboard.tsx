@@ -38,6 +38,7 @@ import {
   Skeleton,
   SkeletonText,
   useToast,
+  GridItem
 } from '@chakra-ui/react';
 import {
   FiCalendar,
@@ -158,7 +159,7 @@ export default function UserDashboard() {
       });
       
       if (eventsResponse.ok) {
-        const eventsData = await eventsResponse.data;
+        const eventsData = await eventsResponse.json();
         const now = new Date();
         const upcoming = eventsData.filter((e: any) => new Date(e.start_time) > now);
         const completed = eventsData.filter((e: any) => e.status === 'COMPLETED');
@@ -363,25 +364,7 @@ export default function UserDashboard() {
                 >
                   Profil
                 </Button>
-                <HStack spacing={2}>
-                  <Tooltip label="Notificări">
-                    <Button size="sm" variant="ghost" position="relative">
-                      <Icon as={FiBell} />
-                      {stats.notifications > 0 && (
-                        <Badge
-                          position="absolute"
-                          top="-2px"
-                          right="-2px"
-                          colorScheme="red"
-                          borderRadius="full"
-                          fontSize="xs"
-                        >
-                          {stats.notifications}
-                        </Badge>
-                      )}
-                    </Button>
-                  </Tooltip>
-                </HStack>
+                
               </VStack>
             </Flex>
           </CardBody>
@@ -489,7 +472,8 @@ export default function UserDashboard() {
         {/* Charts and Quick Stats */}
         <SimpleGrid columns={{ base: 1, lg: 3 }} spacing={6}>
           {/* Activity Chart */}
-          <Card bg={cardBg} shadow="md" borderRadius="lg" colSpan={{ base: 1, lg: 2 }}>
+          <GridItem colSpan={{ base: 1, lg: 2 }}>
+           <Card bg={cardBg} shadow="md" borderRadius="lg">
             <CardHeader>
               <HStack justify="space-between">
                 <VStack align="start" spacing={1}>
@@ -500,9 +484,6 @@ export default function UserDashboard() {
                     Evenimente din ultima săptămână
                   </Text>
                 </VStack>
-                <Button size="sm" variant="ghost" leftIcon={<FiBarChart />}>
-                  Vezi Raport
-                </Button>
               </HStack>
             </CardHeader>
             <CardBody>
@@ -511,7 +492,7 @@ export default function UserDashboard() {
               </Box>
             </CardBody>
           </Card>
-
+        </GridItem>
           {/* Event Type Distribution */}
           <Card bg={cardBg} shadow="md" borderRadius="lg">
             <CardHeader>
@@ -727,9 +708,6 @@ export default function UserDashboard() {
                     Obiective lunare și progres
                   </Text>
                 </VStack>
-                <Button size="sm" variant="ghost" leftIcon={<FiTarget />}>
-                  Setări Obiective
-                </Button>
               </HStack>
             </CardHeader>
             <CardBody>
