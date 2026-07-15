@@ -7,9 +7,6 @@ import {
   Stack,
   Collapse,
   Icon,
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
   useColorModeValue,
   useBreakpointValue,
   useDisclosure,
@@ -37,7 +34,6 @@ import {
   HamburgerIcon,
   CloseIcon,
   ChevronDownIcon,
-  ChevronRightIcon,
   MoonIcon,
   SunIcon,
   BellIcon,
@@ -147,12 +143,6 @@ const NAV_ITEMS: Array<NavItem> = [
     href: '/admin/vehicles',
     icon: FiTruck,
     requiredPermissions: ['vehicles.view'],
-  },
-  {
-    label: 'Trasabilitate',
-    href: '/admin/traceability',
-    icon: FiShield,
-    requiredPermissions: ['traceability.view'],
   },
   {
     label: 'Gestiune Stocuri',
@@ -596,11 +586,12 @@ export default function Navbar() {
     >
       <Flex
         color={textColor}
-        minH={'60px'}
-        py={{ base: 2 }}
-        px={{ base: 4 }}
-        align={'center'}
-        maxW="1400px"
+        minH="64px"
+        py={2}
+        px={{ base: 4, md: 6 }}
+        align="center"
+        gap={3}
+        maxW="100%"
         mx="auto"
       >
         <Flex
@@ -618,75 +609,27 @@ export default function Navbar() {
           />
         </Flex>
 
-        {/* Logo */}
-        <Flex flex={{ base: 1 }} justify={{ base: 'center', md: 'start' }}>
-          <Box
-            as={RouterLink}
-            to="/admin/dashboard"
-            cursor="pointer"
-            _hover={{ transform: 'scale(1.05)' }}
-            transition="all 0.3s"
-          >
-            <Badge
-              px={4}
-              py={2.5}
-              borderRadius="xl"
-              bgGradient="linear(135deg, blue.500 0%, purple.600 50%, pink.500 100%)"
-              color="white"
-              fontSize="sm"
-              fontWeight="bold"
-              letterSpacing="wide"
-              boxShadow="xl"
-              position="relative"
-              overflow="hidden"
-              border="2px solid"
-              borderColor="whiteAlpha.300"
-              _hover={{
-                boxShadow: '2xl',
-                borderColor: 'whiteAlpha.500',
-              }}
-              _before={{
-                content: '""',
-                position: 'absolute',
-                top: 0,
-                left: '-100%',
-                width: '100%',
-                height: '100%',
-                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
-                animation: 'shimmer 3s infinite',
-              }}
-              sx={{
-                '@keyframes shimmer': {
-                  '0%': { left: '-100%' },
-                  '100%': { left: '100%' },
-                },
-              }}
-            >
-              <HStack spacing={2.5}>
-                <Text fontSize="xl" lineHeight="1">🏥</Text>
-                <VStack spacing={0} align="start" lineHeight="1.2">
-                  <Text fontSize="xs" fontWeight="extrabold" letterSpacing="wider">
-                    SPITAL
-                  </Text>
-                  <Text fontSize="xs" fontWeight="extrabold" letterSpacing="wider">
-                    CRAIOVA
-                  </Text>
-                </VStack>
-              </HStack>
-            </Badge>
-          </Box>
-        </Flex>
+        <Text
+          display={{ base: 'block', md: 'none' }}
+          flex={1}
+          textAlign="center"
+          fontWeight="semibold"
+          fontSize="md"
+          color={textColor}
+        >
+          DSPD
+        </Text>
 
         {/* Desktop Navigation */}
-        <Stack
-          flex={{ base: 1, md: 0 }}
-          justify={'flex-end'}
-          direction={'row'}
-          spacing={6}
+        <Flex
+          flex={1}
           display={{ base: 'none', md: 'flex' }}
+          align="center"
+          minW={0}
+          ml={{ md: 2 }}
         >
           <DesktopNav location={location} isAdmin={isAdmin} items={filteredNavItems} />
-        </Stack>
+        </Flex>
 
         {/* Right side controls */}
         <HStack spacing={4} ml={4}>
@@ -803,7 +746,7 @@ export default function Navbar() {
                 </VStack>
               </MenuItem>
               <Divider />
-              <MenuItem icon={<Icon as={FiSettings} />}>
+              <MenuItem icon={<Icon as={FiUser} />} onClick={() => navigate(isAdmin ? '/admin/profile' : '/user/profile')}>
                 Profil
               </MenuItem>
               <MenuItem onClick={logout} color="red.500">
@@ -1153,211 +1096,155 @@ export default function Navbar() {
   );
 }
 
-const NavLinkContent = ({ navItem }: { navItem: NavItem }) => (
-  <HStack spacing={2}>
+const NavLinkContent = ({ navItem, showChevron = false }: { navItem: NavItem; showChevron?: boolean }) => (
+  <HStack spacing={1.5} whiteSpace="nowrap">
     <NavIconBadge count={navItem.badge}>
-      <Icon as={navItem.icon} />
+      <Icon as={navItem.icon} boxSize={4} />
     </NavIconBadge>
     <Text as="span">{navItem.label}</Text>
+    {showChevron && <Icon as={ChevronDownIcon} boxSize={3} opacity={0.65} />}
   </HStack>
 );
 
-const DesktopNav = ({ location, isAdmin, items }: { location: { pathname: string }, isAdmin: boolean, items: NavItem[] }) => {
-  const linkColor = useColorModeValue('gray.600', 'gray.200')
-  const linkHoverColor = useColorModeValue('gray.800', 'white')
-  const popoverContentBgColor = useColorModeValue('white', 'gray.800')
+const isNavItemActive = (navItem: NavItem, pathname: string) => {
+  if (navItem.href && pathname === navItem.href) return true;
+  if (navItem.children?.some((child) => child.href && (pathname === child.href || pathname.startsWith(`${child.href}/`)))) {
+    return true;
+  }
+  return false;
+};
 
-  return (
-    <Stack direction={'row'} spacing={4}>
-      {items.map((navItem) => (
-        <Box key={navItem.label}>
-          {navItem.adminOnly && !isAdmin && (
-            <Popover trigger={'hover'} placement={'bottom-start'}>
-              <PopoverTrigger>
-                <Box
-                  p={2}
-                  fontSize={'sm'}
-                  fontWeight={500}
-                  color={linkColor}
-                  _hover={{
-                    textDecoration: 'none',
-                    color: linkHoverColor,
-                  }}
-                  cursor="not-allowed"
-                  opacity={0.6}
-                >
-                  {navItem.label}
+const DesktopNav = ({ location, isAdmin, items }: { location: { pathname: string }; isAdmin: boolean; items: NavItem[] }) => {
+  const linkColor = useColorModeValue('gray.600', 'gray.300');
+  const linkHoverColor = useColorModeValue('gray.900', 'white');
+  const hoverBg = useColorModeValue('gray.100', 'whiteAlpha.100');
+  const activeBg = useColorModeValue('blue.50', 'whiteAlpha.200');
+  const activeColor = useColorModeValue('blue.600', 'blue.200');
+  const menuBg = useColorModeValue('white', 'gray.800');
+  const menuBorder = useColorModeValue('gray.200', 'gray.600');
+
+  const navItemStyles = (active: boolean) => ({
+    display: 'inline-flex' as const,
+    alignItems: 'center' as const,
+    px: 3,
+    py: 2,
+    fontSize: 'sm',
+    fontWeight: active ? 600 : 500,
+    borderRadius: 'md',
+    whiteSpace: 'nowrap' as const,
+    color: active ? activeColor : linkColor,
+    bg: active ? activeBg : 'transparent',
+    transition: 'all 0.15s ease',
+    _hover: {
+      textDecoration: 'none',
+      color: linkHoverColor,
+      bg: active ? activeBg : hoverBg,
+    },
+    _focus: { boxShadow: 'none', outline: 'none' },
+    _focusVisible: {
+      boxShadow: 'none',
+      outline: 'none',
+      bg: active ? activeBg : hoverBg,
+    },
+    _active: { bg: active ? activeBg : hoverBg },
+  });
+
+  const renderNavItem = (navItem: NavItem) => {
+    if (navItem.adminOnly && !isAdmin) return null;
+
+    const active = isNavItemActive(navItem, location.pathname);
+    const hasDropdown = Boolean(navItem.children?.length);
+
+    if (!hasDropdown && navItem.href) {
+      return (
+        <Box
+          key={navItem.label}
+          as={RouterLink}
+          to={navItem.href}
+          {...navItemStyles(active)}
+        >
+          <NavLinkContent navItem={navItem} />
+        </Box>
+      );
+    }
+
+    if (hasDropdown) {
+      return (
+        <Menu key={navItem.label} placement="bottom-start" isLazy>
+          <MenuButton
+            as={Button}
+            variant="ghost"
+            size="sm"
+            fontWeight={active ? 600 : 500}
+            color={active ? activeColor : linkColor}
+            bg={active ? activeBg : 'transparent'}
+            borderRadius="md"
+            px={3}
+            h="auto"
+            py={2}
+            whiteSpace="nowrap"
+            _hover={{ bg: active ? activeBg : hoverBg, color: linkHoverColor }}
+            _focus={{ boxShadow: 'none' }}
+            _focusVisible={{ boxShadow: 'none', outline: 'none', bg: active ? activeBg : hoverBg }}
+            _active={{ bg: active ? activeBg : hoverBg }}
+          >
+            <NavLinkContent navItem={navItem} showChevron />
+          </MenuButton>
+          <MenuList
+            bg={menuBg}
+            borderColor={menuBorder}
+            shadow="lg"
+            py={2}
+            minW="280px"
+          >
+            {navItem.children?.map((child) => (
+              <MenuItem
+                key={child.label}
+                as={RouterLink}
+                to={child.href ?? '#'}
+                icon={child.icon ? <Icon as={child.icon} /> : undefined}
+                fontSize="sm"
+                py={3}
+                _focus={{ bg: hoverBg }}
+              >
+                <Box>
+                  <Text fontWeight="medium">{child.label}</Text>
+                  {child.subLabel && (
+                    <Text fontSize="xs" color="gray.500" mt={0.5}>
+                      {child.subLabel}
+                    </Text>
+                  )}
                 </Box>
-              </PopoverTrigger>
-            </Popover>
-          )}
-          {navItem.adminOnly && isAdmin && (
-            <Popover trigger={'hover'} placement={'bottom-start'}>
-              <PopoverTrigger>
-                {navItem.href ? (
-                  <Box
-                    as={RouterLink}
-                    to={navItem.href}
-                    p={2}
-                    fontSize={'sm'}
-                    fontWeight={500}
-                    color={location.pathname === navItem.href ? 'brand.primary.500' : linkColor}
-                    _hover={{
-                      textDecoration: 'none',
-                      color: linkHoverColor,
-                    }}
-                    position="relative"
-                    _after={location.pathname === navItem.href ? {
-                      content: '""',
-                      position: 'absolute',
-                      bottom: '-2px',
-                      left: '0',
-                      right: '0',
-                      height: '2px',
-                      bg: 'brand.primary.500',
-                      borderRadius: 'full',
-                    } : undefined}
-                  >
-                    <NavLinkContent navItem={navItem} />
-                  </Box>
-                ) : (
-                  <Box
-                    p={2}
-                    fontSize={'sm'}
-                    fontWeight={500}
-                    color={linkColor}
-                    _hover={{
-                      textDecoration: 'none',
-                      color: linkHoverColor,
-                    }}
-                  >
-                    <NavLinkContent navItem={navItem} />
-                  </Box>
-                )}
-              </PopoverTrigger>
+              </MenuItem>
+            ))}
+          </MenuList>
+        </Menu>
+      );
+    }
 
-              {navItem.children && (
-                <PopoverContent
-                  border={0}
-                  boxShadow={'xl'}
-                  bg={popoverContentBgColor}
-                  p={4}
-                  rounded={'xl'}
-                  minW={'sm'}>
-                  <Stack>
-                    {navItem.children.map((child) => (
-                      <DesktopSubNav key={child.label} {...child} />
-                    ))}
-                  </Stack>
-                </PopoverContent>
-              )}
-            </Popover>
-          )}
-          {!navItem.adminOnly && (
-            <Popover trigger={'hover'} placement={'bottom-start'}>
-              <PopoverTrigger>
-                {navItem.href ? (
-                  <Box
-                    as={RouterLink}
-                    to={navItem.href}
-                    p={2}
-                    fontSize={'sm'}
-                    fontWeight={500}
-                    color={location.pathname === navItem.href ? 'brand.primary.500' : linkColor}
-                    _hover={{
-                      textDecoration: 'none',
-                      color: linkHoverColor,
-                    }}
-                    position="relative"
-                    _after={location.pathname === navItem.href ? {
-                      content: '""',
-                      position: 'absolute',
-                      bottom: '-2px',
-                      left: '0',
-                      right: '0',
-                      height: '2px',
-                      bg: 'brand.primary.500',
-                      borderRadius: 'full',
-                    } : undefined}
-                  >
-                    <NavLinkContent navItem={navItem} />
-                  </Box>
-                ) : (
-                  <Box
-                    p={2}
-                    fontSize={'sm'}
-                    fontWeight={500}
-                    color={linkColor}
-                    _hover={{
-                      textDecoration: 'none',
-                      color: linkHoverColor,
-                    }}
-                  >
-                    <NavLinkContent navItem={navItem} />
-                  </Box>
-                )}
-              </PopoverTrigger>
+    return (
+      <Box key={navItem.label} {...navItemStyles(active)} cursor="default">
+        <NavLinkContent navItem={navItem} />
+      </Box>
+    );
+  };
 
-              {navItem.children && (
-                <PopoverContent
-                  border={0}
-                  boxShadow={'xl'}
-                  bg={popoverContentBgColor}
-                  p={4}
-                  rounded={'xl'}
-                  minW={'sm'}>
-                  <Stack>
-                    {navItem.children.map((child) => (
-                      <DesktopSubNav key={child.label} {...child} />
-                    ))}
-                  </Stack>
-                </PopoverContent>
-              )}
-            </Popover>
-          )}
-        </Box>
-      ))}
-    </Stack>
-  )
-}
-
-const DesktopSubNav = ({ label, href, subLabel, icon }: NavItem) => {
   return (
-    <Box
-      as={RouterLink}
-      to={href ?? '#'}
-      role={'group'}
-      display={'block'}
-      p={2}
-      rounded={'md'}
-      _hover={{ bg: useColorModeValue('brand.primary.50', 'gray.900') }}>
-      <Stack direction={'row'} align={'center'}>
-        <Box>
-          <HStack spacing={2}>
-            {icon && <Icon as={icon} />}
-            <Text
-              transition={'all .3s ease'}
-              _groupHover={{ color: 'brand.primary.500' }}
-              fontWeight={500}>
-              {label}
-            </Text>
-          </HStack>
-          <Text fontSize={'sm'}>{subLabel}</Text>
-        </Box>
-        <Flex
-          transition={'all .3s ease'}
-          transform={'translateX(-10px)'}
-          opacity={0}
-          _groupHover={{ opacity: 1, transform: 'translateX(0)' }}
-          justify={'flex-end'}
-          align={'center'}
-          flex={1}>
-          <Icon color={'brand.primary.500'} w={5} h={5} as={ChevronRightIcon} />
-        </Flex>
-      </Stack>
-    </Box>
-  )
-}
+    <HStack
+      spacing={1}
+      flex={1}
+      overflowX="auto"
+      overflowY="hidden"
+      py={1}
+      sx={{
+        '&::-webkit-scrollbar': { height: '4px' },
+        '&::-webkit-scrollbar-thumb': { background: 'transparent' },
+      }}
+    >
+      {items.map(renderNavItem)}
+    </HStack>
+  );
+};
 
 const MobileNav = ({ logout, items }: { logout: () => void, items: NavItem[] }) => {
   return (

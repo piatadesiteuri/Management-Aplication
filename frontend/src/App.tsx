@@ -167,6 +167,7 @@ function App() {
               <Route path="inventory" element={<PermissionRoute requiredPermissions={['supply.view']} fallbackTo="/admin/dashboard"><InventoryList /></PermissionRoute>} />
             </Route>
             <Route path="users" element={<PermissionRoute requiredPermissions={['users.manage']} fallbackTo="/admin/dashboard"><UserManagement /></PermissionRoute>} />
+            <Route path="profile" element={<PermissionRoute requiredPermissions={['profile.view']} fallbackTo="/admin/dashboard"><UserProfile /></PermissionRoute>} />
             <Route path="settings" element={<PermissionRoute requiredPermissions={['system_settings.manage', 'roles.manage']} fallbackTo="/admin/dashboard"><SystemSettings /></PermissionRoute>} />
             <Route path="reports" element={<PermissionRoute requiredPermissions={['reports.view']} fallbackTo="/admin/dashboard"><ReportsManagement /></PermissionRoute>} />
             <Route path="business-intelligence" element={<PermissionRoute requiredPermissions={['bi.view']} fallbackTo="/admin/dashboard"><BusinessIntelligencePage /></PermissionRoute>} />

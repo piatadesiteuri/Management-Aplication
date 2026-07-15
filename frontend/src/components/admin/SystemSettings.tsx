@@ -65,16 +65,13 @@ import {
   FiAlertTriangle,
   FiCheck,
   FiUsers,
-  FiUser,
   FiPlus,
   FiEdit2,
   FiTrash2,
   FiMoreVertical,
 } from 'react-icons/fi';
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../hooks/useAuth';
 import api from '../../services/api';
-import { useNavigate } from 'react-router-dom';
 
 interface SystemSettings {
   // Setări generale
@@ -153,29 +150,9 @@ export default function SystemSettings() {
   const [testingEmail, setTestingEmail] = useState(false);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
   const toast = useToast();
-  const { user } = useAuth();
-  const navigate = useNavigate();
-
-  // State pentru tab-uri noi
   const [roles, setRoles] = useState<any[]>([]);
   const [userGroups, setUserGroups] = useState<any[]>([]);
   const [permissionCatalog, setPermissionCatalog] = useState<any[]>([]);
-  const [profileData, setProfileData] = useState({
-    firstName: user?.firstName || '',
-    lastName: user?.lastName || '',
-    email: user?.email || '',
-  });
-  const [notificationPrefs, setNotificationPrefs] = useState({
-    emailNotifications: true,
-    smsNotifications: false,
-    notifyOnSystemErrors: true,
-    notifyOnUserActions: false,
-  });
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-  });
 
   // Modals
   const { isOpen: isRoleModalOpen, onOpen: onRoleModalOpen, onClose: onRoleModalClose } = useDisclosure();
@@ -194,7 +171,6 @@ export default function SystemSettings() {
     loadRoles();
     loadPermissionCatalog();
     loadUserGroups();
-    loadNotificationPreferences();
   }, []);
 
   const loadSettings = async () => {
@@ -364,55 +340,6 @@ export default function SystemSettings() {
     }
   };
 
-  // Funcții pentru profil
-  const loadNotificationPreferences = async () => {
-    try {
-      const res = await api.get('/auth/profile/notification-preferences');
-      setNotificationPrefs(res.data || notificationPrefs);
-    } catch (error) {
-      console.error('Error loading notification preferences:', error);
-    }
-  };
-
-  const handleUpdateProfile = async () => {
-    try {
-      await api.put('/auth/profile', {
-        firstName: profileData.firstName,
-        lastName: profileData.lastName,
-        email: profileData.email,
-      });
-      toast({ title: 'Succes', description: 'Profilul a fost actualizat.', status: 'success', duration: 3000, isClosable: true });
-    } catch (error: any) {
-      toast({ title: 'Eroare', description: error?.response?.data?.message || 'Nu s-a putut actualiza profilul.', status: 'error', duration: 5000, isClosable: true });
-    }
-  };
-
-  const handleChangePassword = async () => {
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast({ title: 'Eroare', description: 'Parolele nu se potrivesc.', status: 'error', duration: 3000, isClosable: true });
-      return;
-    }
-    try {
-      await api.put('/auth/profile/password', {
-        currentPassword: passwordData.currentPassword,
-        newPassword: passwordData.newPassword,
-      });
-      toast({ title: 'Succes', description: 'Parola a fost schimbată.', status: 'success', duration: 3000, isClosable: true });
-      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    } catch (error: any) {
-      toast({ title: 'Eroare', description: error?.response?.data?.message || 'Nu s-a putut schimba parola.', status: 'error', duration: 5000, isClosable: true });
-    }
-  };
-
-  const handleUpdateNotificationPreferences = async () => {
-    try {
-      await api.put('/auth/profile/notification-preferences', notificationPrefs);
-      toast({ title: 'Succes', description: 'Preferințele au fost actualizate.', status: 'success', duration: 3000, isClosable: true });
-    } catch (error: any) {
-      toast({ title: 'Eroare', description: error?.response?.data?.message || 'Nu s-au putut actualiza preferințele.', status: 'error', duration: 5000, isClosable: true });
-    }
-  };
-
   return (
     <Box bg={bgColor} p={6} borderRadius="xl" shadow="xl" border="1px solid" borderColor={borderColor}>
       {/* Header */}
@@ -454,32 +381,20 @@ export default function SystemSettings() {
         <TabList>
           <Tab>
             <HStack spacing={2}>
-              <Icon as={FiSettings} />
-              <Text>Setări Sistem</Text>
-            </HStack>
-          </Tab>
-          <Tab>
-            <HStack spacing={2}>
-              <Icon as={FiUsers} />
-              <Text>Administrare Utilizatori</Text>
+              <Icon as={FiGlobe} />
+              <Text>Configurare</Text>
             </HStack>
           </Tab>
           <Tab>
             <HStack spacing={2}>
               <Icon as={FiShield} />
-              <Text>Administrare Roluri</Text>
+              <Text>Roluri</Text>
             </HStack>
           </Tab>
           <Tab>
             <HStack spacing={2}>
               <Icon as={FiUsers} />
-              <Text>Grupuri Utilizatori</Text>
-            </HStack>
-          </Tab>
-          <Tab>
-            <HStack spacing={2}>
-              <Icon as={FiUser} />
-              <Text>Profil Utilizator</Text>
+              <Text>Grupuri</Text>
             </HStack>
           </Tab>
         </TabList>
@@ -815,27 +730,7 @@ export default function SystemSettings() {
           </VStack>
           </TabPanel>
 
-          {/* Tab 2: Administrare Utilizatori */}
-          <TabPanel px={0}>
-            <Card bg={cardBg} border="1px solid" borderColor={borderColor}>
-              <CardBody>
-                <VStack align="stretch" spacing={4}>
-                  <HStack justify="space-between">
-                    <Text fontSize="lg" fontWeight="semibold">Gestionare Utilizatori</Text>
-                    <Button leftIcon={<FiUsers />} colorScheme="blue" onClick={() => navigate('/admin/users')}>
-                      Deschide Gestionare Utilizatori
-                    </Button>
-                  </HStack>
-                  <Text fontSize="sm" color="gray.600">
-                    Accesul la funcționalitățile de administrare a utilizatorilor salariați este permis doar administratorilor de platformă.
-                    Poți adăuga utilizatori noi, inactivează/activează utilizatori sau blochează accesul pentru o perioadă determinată.
-                  </Text>
-                </VStack>
-              </CardBody>
-            </Card>
-          </TabPanel>
-
-          {/* Tab 3: Administrare Roluri */}
+          {/* Tab 2: Roluri */}
           <TabPanel px={0}>
             <VStack align="stretch" spacing={4}>
               <Card bg={cardBg} border="1px solid" borderColor={borderColor}>
@@ -884,7 +779,7 @@ export default function SystemSettings() {
             </VStack>
           </TabPanel>
 
-          {/* Tab 4: Grupuri Utilizatori */}
+          {/* Tab 3: Grupuri */}
           <TabPanel px={0}>
             <VStack align="stretch" spacing={4}>
               <Card bg={cardBg} border="1px solid" borderColor={borderColor}>
@@ -928,90 +823,6 @@ export default function SystemSettings() {
                       </Tbody>
                     </Table>
                   </TableContainer>
-                </CardBody>
-              </Card>
-            </VStack>
-          </TabPanel>
-
-          {/* Tab 5: Profil Utilizator */}
-          <TabPanel px={0}>
-            <VStack align="stretch" spacing={4}>
-              <Card bg={cardBg} border="1px solid" borderColor={borderColor}>
-                <CardHeader>
-                  <Text fontSize="lg" fontWeight="semibold">Date Personale</Text>
-                </CardHeader>
-                <CardBody>
-                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-                    <FormControl>
-                      <FormLabel>Prenume</FormLabel>
-                      <Input value={profileData.firstName} onChange={(e) => setProfileData({ ...profileData, firstName: e.target.value })} />
-                    </FormControl>
-                    <FormControl>
-                      <FormLabel>Nume</FormLabel>
-                      <Input value={profileData.lastName} onChange={(e) => setProfileData({ ...profileData, lastName: e.target.value })} />
-                    </FormControl>
-                    <FormControl>
-                      <FormLabel>Email</FormLabel>
-                      <Input type="email" value={profileData.email} onChange={(e) => setProfileData({ ...profileData, email: e.target.value })} />
-                    </FormControl>
-                  </SimpleGrid>
-                  <Button mt={4} leftIcon={<FiSave />} colorScheme="blue" onClick={handleUpdateProfile}>
-                    Salvează Date Personale
-                  </Button>
-                </CardBody>
-              </Card>
-
-              <Card bg={cardBg} border="1px solid" borderColor={borderColor}>
-                <CardHeader>
-                  <Text fontSize="lg" fontWeight="semibold">Schimbare Parolă</Text>
-                </CardHeader>
-                <CardBody>
-                  <VStack align="stretch" spacing={4}>
-                    <FormControl>
-                      <FormLabel>Parola Curentă</FormLabel>
-                      <Input type="password" value={passwordData.currentPassword} onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })} />
-                    </FormControl>
-                    <FormControl>
-                      <FormLabel>Parola Nouă</FormLabel>
-                      <Input type="password" value={passwordData.newPassword} onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })} />
-                    </FormControl>
-                    <FormControl>
-                      <FormLabel>Confirmă Parola Nouă</FormLabel>
-                      <Input type="password" value={passwordData.confirmPassword} onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })} />
-                    </FormControl>
-                    <Button leftIcon={<FiSave />} colorScheme="blue" onClick={handleChangePassword}>
-                      Schimbă Parola
-                    </Button>
-                  </VStack>
-                </CardBody>
-              </Card>
-
-              <Card bg={cardBg} border="1px solid" borderColor={borderColor}>
-                <CardHeader>
-                  <Text fontSize="lg" fontWeight="semibold">Preferințe Notificări</Text>
-                </CardHeader>
-                <CardBody>
-                  <VStack align="stretch" spacing={4}>
-                    <FormControl display="flex" alignItems="center">
-                      <Switch isChecked={notificationPrefs.emailNotifications} onChange={(e) => setNotificationPrefs({ ...notificationPrefs, emailNotifications: e.target.checked })} />
-                      <FormLabel mb="0" ml={3}>Notificări Email</FormLabel>
-                    </FormControl>
-                    <FormControl display="flex" alignItems="center">
-                      <Switch isChecked={notificationPrefs.smsNotifications} onChange={(e) => setNotificationPrefs({ ...notificationPrefs, smsNotifications: e.target.checked })} />
-                      <FormLabel mb="0" ml={3}>Notificări SMS</FormLabel>
-                    </FormControl>
-                    <FormControl display="flex" alignItems="center">
-                      <Switch isChecked={notificationPrefs.notifyOnSystemErrors} onChange={(e) => setNotificationPrefs({ ...notificationPrefs, notifyOnSystemErrors: e.target.checked })} />
-                      <FormLabel mb="0" ml={3}>Notificare Erori Sistem</FormLabel>
-                    </FormControl>
-                    <FormControl display="flex" alignItems="center">
-                      <Switch isChecked={notificationPrefs.notifyOnUserActions} onChange={(e) => setNotificationPrefs({ ...notificationPrefs, notifyOnUserActions: e.target.checked })} />
-                      <FormLabel mb="0" ml={3}>Notificare Acțiuni Utilizatori</FormLabel>
-                    </FormControl>
-                    <Button leftIcon={<FiSave />} colorScheme="blue" onClick={handleUpdateNotificationPreferences}>
-                      Salvează Preferințe
-                    </Button>
-                  </VStack>
                 </CardBody>
               </Card>
             </VStack>

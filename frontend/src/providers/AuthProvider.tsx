@@ -137,6 +137,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return user?.permissions?.includes(permission) || false;
   };
 
+  const updateUser = (patch: Partial<User>) => {
+    setUser((prevUser) => {
+      if (!prevUser) return prevUser;
+      const nextUser: User = {
+        ...prevUser,
+        ...patch,
+        name:
+          patch.first_name !== undefined || patch.last_name !== undefined
+            ? `${patch.first_name ?? prevUser.first_name ?? ''} ${patch.last_name ?? prevUser.last_name ?? ''}`.trim()
+            : prevUser.name,
+      };
+      localStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+      return nextUser;
+    });
+  };
+
   const contextValue: AuthContextType = {
     user,
     login,
@@ -144,7 +160,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isAuthenticated: !!user,
     loading,
     hasRole,
-    hasPermission
+    hasPermission,
+    updateUser,
   };
 
   return (

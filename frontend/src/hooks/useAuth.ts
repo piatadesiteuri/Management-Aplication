@@ -20,6 +20,7 @@ export interface AuthContextType {
   logout: () => Promise<void>;
   hasRole: (role: string) => boolean;
   hasPermission: (permission: string) => boolean;
+  updateUser: (patch: Partial<User>) => void;
 }
 
 export interface AuthProviderProps {
@@ -38,6 +39,7 @@ export const AuthContext = createContext<AuthContextType>({
   },
   hasRole: () => false,
   hasPermission: () => false,
+  updateUser: () => {},
 });
 
 export const useAuth = () => {

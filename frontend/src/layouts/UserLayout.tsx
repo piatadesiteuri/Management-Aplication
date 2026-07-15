@@ -756,8 +756,8 @@ export default function UserLayout({ children }: UserLayoutProps) {
             </HStack>
           </Flex>
 
-          <Box mt={4} display={{ base: 'none', lg: 'block' }}>
-            <HStack spacing={2} overflowX="auto" pb={1}>
+          <Box mt={3} display={{ base: 'none', lg: 'block' }}>
+            <HStack spacing={2} overflowX="auto" py={2} px={1} align="center">
               {displayedNavItems.map((item) => {
                 const isActive = location.pathname === item.path;
                 return (
@@ -774,7 +774,14 @@ export default function UserLayout({ children }: UserLayoutProps) {
                     onClick={() => navigate(item.path)}
                     whiteSpace="nowrap"
                     minW="fit-content"
+                    flexShrink={0}
                     _hover={{ bg: isActive ? activeBg : gray100 }}
+                    _focusVisible={{
+                      boxShadow: 'none',
+                      outline: '2px solid',
+                      outlineColor: isActive ? 'teal.300' : 'gray.400',
+                      outlineOffset: '0px',
+                    }}
                   >
                     {item.name}
                   </Button>
