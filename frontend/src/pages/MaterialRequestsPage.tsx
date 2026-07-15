@@ -44,7 +44,17 @@ import {
   AlertTitle,
   AlertDescription,
   Input,
-  Divider
+  Divider,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
+  SimpleGrid,
 } from '@chakra-ui/react';
 import { FiPackage, FiCheck, FiX, FiClock, FiAlertTriangle, FiEye, FiCalendar, FiTruck } from 'react-icons/fi';
 import { useAuth } from '../hooks/useAuth';
@@ -81,6 +91,7 @@ export default function MaterialRequestsPage() {
   const [approvalQuantity, setApprovalQuantity] = useState<number>(0);
   const [approvalComments, setApprovalComments] = useState<string>('');
   const [rejectionReason, setRejectionReason] = useState<string>('');
+  const [activeTab, setActiveTab] = useState(0);
   
   // State-uri noi pentru crearea evenimentului de transport
   const [transportDate, setTransportDate] = useState<string>('');
@@ -98,6 +109,9 @@ export default function MaterialRequestsPage() {
   const cardBgColor = useColorModeValue('gray.50', 'gray.700');
   const textColor = useColorModeValue('gray.800', 'white');
   const mutedTextColor = useColorModeValue('gray.600', 'gray.400');
+  const readonlyInputBg = useColorModeValue('gray.100', 'gray.600');
+  const readonlyInputColor = useColorModeValue('gray.600', 'gray.300');
+  const readonlyInputBorder = useColorModeValue('gray.300', 'gray.500');
 
   useEffect(() => {
     loadRequests();
@@ -236,7 +250,7 @@ export default function MaterialRequestsPage() {
           'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`
         },
         body: JSON.stringify({
-          quantity_approved: approvalQuantity || selectedRequest.quantity_requested,
+          quantity_approved: selectedRequest.quantity_requested,
           comments: approvalComments,
           transport_date: transportDate,
           supplier_id: selectedSupplier,
@@ -387,6 +401,131 @@ export default function MaterialRequestsPage() {
     }
   };
 
+  const filteredRequests = requests.filter((request) => {
+    if (activeTab === 1) return request.status === 'PENDING';
+    if (activeTab === 2) return request.status === 'APPROVED';
+    if (activeTab === 3) return request.status === 'REJECTED';
+    return true;
+  });
+
+  const tableRowHoverBg = useColorModeValue('gray.50', 'whiteAlpha.50');
+
+  const renderRequestsTable = () => (
+    filteredRequests.length === 0 ? (
+      <Alert status="info" borderRadius="lg">
+        <AlertIcon />
+        <AlertTitle>Nicio cerere în această categorie</AlertTitle>
+        <AlertDescription>
+          Nu există cereri de materiale pentru filtrul selectat.
+        </AlertDescription>
+      </Alert>
+    ) : (
+      <Table variant="simple" size="sm">
+        <Thead>
+          <Tr>
+            <Th>Nr. Cerere</Th>
+            <Th>Produs</Th>
+            <Th>Cantitate</Th>
+            <Th>Prioritate</Th>
+            <Th>Status</Th>
+            <Th>Solicitant</Th>
+            <Th>Data</Th>
+            <Th>Acțiuni</Th>
+          </Tr>
+        </Thead>
+        <Tbody>
+          {filteredRequests.map((request) => (
+            <Tr key={request.id} _hover={{ bg: tableRowHoverBg }}>
+              <Td>
+                <Text fontWeight="semibold" fontSize="sm">
+                  {request.request_number}
+                </Text>
+              </Td>
+              <Td>
+                <VStack align="start" spacing={1}>
+                  <Text fontWeight="semibold">{request.product_name}</Text>
+                  <Text fontSize="sm" color={mutedTextColor}>
+                    {request.supplier_name || '—'}
+                  </Text>
+                </VStack>
+              </Td>
+              <Td>
+                <Text fontWeight="bold">{request.quantity_requested}</Text>
+                <Text fontSize="sm" color={mutedTextColor}>
+                  {request.product_unit}
+                </Text>
+              </Td>
+              <Td>
+                <Badge colorScheme={getPriorityColor(request.priority)}>
+                  {getPriorityText(request.priority)}
+                </Badge>
+              </Td>
+              <Td>
+                <Badge colorScheme={getStatusColor(request.status)}>
+                  {getStatusText(request.status)}
+                </Badge>
+              </Td>
+              <Td>
+                <Text fontSize="sm">
+                  {request.requester_first_name} {request.requester_last_name}
+                </Text>
+              </Td>
+              <Td>
+                <Text fontSize="sm">
+                  {new Date(request.created_at).toLocaleDateString('ro-RO')}
+                </Text>
+              </Td>
+              <Td>
+                <HStack spacing={2}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    leftIcon={<Icon as={FiEye} />}
+                    onClick={() => openViewModal(request)}
+                  >
+                    Vezi
+                  </Button>
+                  {request.status === 'PENDING' && (user?.roles?.includes('INSPECTOR') || user?.roles?.includes('SUPER_ADMIN') || user?.roles?.includes('DEPARTMENT_ADMIN') || user?.roles?.includes('ADMIN') || user?.roles?.includes('WAREHOUSE_KEEPER')) && (
+                    <>
+                      <Button
+                        size="sm"
+                        colorScheme="green"
+                        leftIcon={<Icon as={FiCheck} />}
+                        onClick={() => openApproveModal(request)}
+                      >
+                        Aprobă
+                      </Button>
+                      <Button
+                        size="sm"
+                        colorScheme="red"
+                        leftIcon={<Icon as={FiX} />}
+                        onClick={() => openRejectModal(request)}
+                      >
+                        Respinge
+                      </Button>
+                    </>
+                  )}
+                  {request.status === 'APPROVED' && request.transport_event_id && (
+                    <Button
+                      size="sm"
+                      colorScheme="teal"
+                      variant="outline"
+                      leftIcon={<Icon as={FiTruck} />}
+                      onClick={() => navigate(`/user/calendar?event=${request.transport_event_id}`)}
+                      title="Vezi evenimentul de transport în calendar"
+                    >
+                      Transport
+                    </Button>
+                  )}
+                </HStack>
+              </Td>
+            </Tr>
+          ))}
+        </Tbody>
+      </Table>
+    )
+  );
+
   if (loading) {
     return (
       <Center h="400px">
@@ -440,13 +579,20 @@ export default function MaterialRequestsPage() {
           </HStack>
 
           {/* Lista cererilor */}
-          <Card bg={bgColor}>
-            <CardHeader>
-              <Heading size="md">Cereri de Materiale</Heading>
+          <Card bg={bgColor} borderRadius="xl" overflow="hidden" boxShadow="lg">
+            <CardHeader pb={0}>
+              <Tabs index={activeTab} onChange={setActiveTab} variant="enclosed" colorScheme="blue">
+                <TabList flexWrap="wrap">
+                  <Tab>Toate ({requests.length})</Tab>
+                  <Tab>În așteptare ({requests.filter(r => r.status === 'PENDING').length})</Tab>
+                  <Tab>Aprobate ({requests.filter(r => r.status === 'APPROVED').length})</Tab>
+                  <Tab>Respinse ({requests.filter(r => r.status === 'REJECTED').length})</Tab>
+                </TabList>
+              </Tabs>
             </CardHeader>
-            <CardBody>
+            <CardBody pt={4}>
               {requests.length === 0 ? (
-                <Alert status="info">
+                <Alert status="info" borderRadius="lg">
                   <AlertIcon />
                   <AlertTitle>Nicio cerere de materiale!</AlertTitle>
                   <AlertDescription>
@@ -454,110 +600,7 @@ export default function MaterialRequestsPage() {
                   </AlertDescription>
                 </Alert>
               ) : (
-                <Table variant="simple" size="sm">
-                  <Thead>
-                    <Tr>
-                      <Th>Nr. Cerere</Th>
-                      <Th>Produs</Th>
-                      <Th>Cantitate</Th>
-                      <Th>Prioritate</Th>
-                      <Th>Status</Th>
-                      <Th>Solicitant</Th>
-                      <Th>Data</Th>
-                      <Th>Acțiuni</Th>
-                    </Tr>
-                  </Thead>
-                  <Tbody>
-                    {requests.map((request) => (
-                      <Tr key={request.id}>
-                        <Td>
-                          <Text fontWeight="semibold" fontSize="sm">
-                            {request.request_number}
-                          </Text>
-                        </Td>
-                        <Td>
-                          <VStack align="start" spacing={1}>
-                            <Text fontWeight="semibold">{request.product_name}</Text>
-                            <Text fontSize="sm" color={mutedTextColor}>
-                              {request.supplier_name}
-                            </Text>
-                          </VStack>
-                        </Td>
-                        <Td>
-                          <Text fontWeight="bold">{request.quantity_requested}</Text>
-                          <Text fontSize="sm" color={mutedTextColor}>
-                            {request.product_unit}
-                          </Text>
-                        </Td>
-                        <Td>
-                          <Badge colorScheme={getPriorityColor(request.priority)}>
-                            {getPriorityText(request.priority)}
-                          </Badge>
-                        </Td>
-                        <Td>
-                          <Badge colorScheme={getStatusColor(request.status)}>
-                            {getStatusText(request.status)}
-                          </Badge>
-                        </Td>
-                        <Td>
-                          <Text fontSize="sm">
-                            {request.requester_first_name} {request.requester_last_name}
-                          </Text>
-                        </Td>
-                        <Td>
-                          <Text fontSize="sm">
-                            {new Date(request.created_at).toLocaleDateString('ro-RO')}
-                          </Text>
-                        </Td>
-                        <Td>
-                          <HStack spacing={2}>
-                            <Button
-                              size="sm"
-                              colorScheme="blue"
-                              variant="outline"
-                              leftIcon={<Icon as={FiEye} />}
-                              onClick={() => openViewModal(request)}
-                            >
-                              Vezi
-                            </Button>
-                            {request.status === 'PENDING' && (user?.roles?.includes('INSPECTOR') || user?.roles?.includes('SUPER_ADMIN') || user?.roles?.includes('DEPARTMENT_ADMIN') || user?.roles?.includes('ADMIN') || user?.roles?.includes('WAREHOUSE_KEEPER')) && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  colorScheme="green"
-                                  leftIcon={<Icon as={FiCheck} />}
-                                  onClick={() => openApproveModal(request)}
-                                >
-                                  Aprobă
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  colorScheme="red"
-                                  leftIcon={<Icon as={FiX} />}
-                                  onClick={() => openRejectModal(request)}
-                                >
-                                  Respinge
-                                </Button>
-                              </>
-                            )}
-                            {request.status === 'APPROVED' && request.transport_event_id && (
-                              <Button
-                                size="sm"
-                                colorScheme="teal"
-                                variant="outline"
-                                leftIcon={<Icon as={FiTruck} />}
-                                onClick={() => navigate(`/user/calendar?event=${request.transport_event_id}`)}
-                                title="Vezi evenimentul de transport în calendar"
-                              >
-                                Transport
-                              </Button>
-                            )}
-                          </HStack>
-                        </Td>
-                      </Tr>
-                    ))}
-                  </Tbody>
-                </Table>
+                renderRequestsTable()
               )}
             </CardBody>
           </Card>
@@ -565,103 +608,105 @@ export default function MaterialRequestsPage() {
       </Container>
 
       {/* Modal pentru vizualizare cerere */}
-      <Modal isOpen={isViewOpen} onClose={onViewClose} size="lg">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>
-            <HStack>
-              <Icon as={FiEye} color="blue.500" />
-              <Text>Detalii Cerere: {selectedRequest?.request_number}</Text>
+      <Modal isOpen={isViewOpen} onClose={onViewClose} size="2xl" isCentered>
+        <ModalOverlay backdropFilter="blur(8px)" />
+        <ModalContent borderRadius="2xl" overflow="hidden" boxShadow="2xl">
+          <Box
+            bgGradient="linear(135deg, orange.400 0%, pink.500 100%)"
+            px={6}
+            py={6}
+            color="white"
+            position="relative"
+          >
+            <HStack spacing={3}>
+              <Icon as={FiPackage} boxSize={6} />
+              <VStack align="start" spacing={0}>
+                <Text fontSize="xl" fontWeight="bold">Cerere materiale</Text>
+                <Text fontSize="sm" opacity={0.9}>{selectedRequest?.request_number}</Text>
+              </VStack>
             </HStack>
-          </ModalHeader>
-          <ModalCloseButton />
-          <ModalBody pb={6}>
+            <ModalCloseButton color="white" _hover={{ bg: 'whiteAlpha.200' }} />
+          </Box>
+          <ModalBody p={6}>
             {selectedRequest && (
-              <VStack spacing={4} align="stretch">
-                <Box p={4} bg={cardBgColor} borderRadius="md">
-                  <Text fontWeight="semibold">Nr. Cerere: {selectedRequest.request_number}</Text>
-                  <Text fontSize="sm" color={mutedTextColor}>
-                    Data: {new Date(selectedRequest.created_at).toLocaleString('ro-RO')}
+              <VStack spacing={5} align="stretch">
+                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+                  <Stat p={4} bg={cardBgColor} borderRadius="xl">
+                    <StatLabel>Produs</StatLabel>
+                    <StatNumber fontSize="lg">{selectedRequest.product_name}</StatNumber>
+                    <StatHelpText>{selectedRequest.supplier_name || 'Fără furnizor'}</StatHelpText>
+                  </Stat>
+                  <Stat p={4} bg={cardBgColor} borderRadius="xl">
+                    <StatLabel>Cantitate cerută</StatLabel>
+                    <StatNumber fontSize="lg">{selectedRequest.quantity_requested}</StatNumber>
+                    <StatHelpText>{selectedRequest.product_unit}</StatHelpText>
+                  </Stat>
+                  <Stat p={4} bg={cardBgColor} borderRadius="xl">
+                    <StatLabel>Prioritate</StatLabel>
+                    <StatNumber fontSize="md">
+                      <Badge colorScheme={getPriorityColor(selectedRequest.priority)} px={3} py={1}>
+                        {getPriorityText(selectedRequest.priority)}
+                      </Badge>
+                    </StatNumber>
+                  </Stat>
+                  <Stat p={4} bg={cardBgColor} borderRadius="xl">
+                    <StatLabel>Status</StatLabel>
+                    <StatNumber fontSize="md">
+                      <Badge colorScheme={getStatusColor(selectedRequest.status)} px={3} py={1}>
+                        {getStatusText(selectedRequest.status)}
+                      </Badge>
+                    </StatNumber>
+                  </Stat>
+                </SimpleGrid>
+
+                <Box p={4} bg={cardBgColor} borderRadius="xl">
+                  <Text fontSize="sm" color={mutedTextColor} mb={1}>Solicitant</Text>
+                  <Text fontWeight="semibold">
+                    {selectedRequest.requester_first_name} {selectedRequest.requester_last_name}
+                  </Text>
+                  <Text fontSize="sm" color={mutedTextColor} mt={3}>
+                    {new Date(selectedRequest.created_at).toLocaleString('ro-RO')}
                   </Text>
                 </Box>
-                
-                <Box>
-                  <Text fontWeight="semibold">Produs</Text>
-                  <Text>{selectedRequest.product_name}</Text>
-                  <Text fontSize="sm" color={mutedTextColor}>
-                    Furnizor: {selectedRequest.supplier_name}
-                  </Text>
+
+                <Box p={4} bg={cardBgColor} borderRadius="xl">
+                  <Text fontSize="sm" color={mutedTextColor} mb={2}>Motivul cererii</Text>
+                  <Text>{selectedRequest.reason || '—'}</Text>
                 </Box>
-                
-                <Box>
-                  <Text fontWeight="semibold">Cantitate Cerută</Text>
-                  <Text>{selectedRequest.quantity_requested} {selectedRequest.product_unit}</Text>
-                  {selectedRequest.quantity_approved > 0 && (
-                    <Text fontSize="sm" color="green.500" mt={1}>
-                      Aprobată: {selectedRequest.quantity_approved} {selectedRequest.product_unit}
-                    </Text>
-                  )}
-                </Box>
-                
-                <Box>
-                  <Text fontWeight="semibold">Prioritate</Text>
-                  <Badge colorScheme={getPriorityColor(selectedRequest.priority)}>
-                    {getPriorityText(selectedRequest.priority)}
-                  </Badge>
-                </Box>
-                
-                <Box>
-                  <Text fontWeight="semibold">Status</Text>
-                  <Badge colorScheme={getStatusColor(selectedRequest.status)}>
-                    {getStatusText(selectedRequest.status)}
-                  </Badge>
-                </Box>
-                
-                <Box>
-                  <Text fontWeight="semibold">Solicitant</Text>
-                  <Text>{selectedRequest.requester_first_name} {selectedRequest.requester_last_name}</Text>
-                </Box>
-                
-                <Box>
-                  <Text fontWeight="semibold">Motivul Cererii</Text>
-                  <Text>{selectedRequest.reason}</Text>
-                </Box>
-                
+
+                {selectedRequest.quantity_approved > 0 && (
+                  <Alert status="success" borderRadius="lg">
+                    <AlertIcon />
+                    <Text>Aprobată: {selectedRequest.quantity_approved} {selectedRequest.product_unit}</Text>
+                  </Alert>
+                )}
+
                 {selectedRequest.rejection_reason && (
-                  <Box>
-                    <Text fontWeight="semibold">Motivul Respingerii</Text>
-                    <Text color="red.500">{selectedRequest.rejection_reason}</Text>
-                  </Box>
+                  <Alert status="error" borderRadius="lg">
+                    <AlertIcon />
+                    <Text>{selectedRequest.rejection_reason}</Text>
+                  </Alert>
                 )}
 
                 {selectedRequest.transport_event_id && (
-                  <Box p={3} bg="teal.50" borderRadius="md" border="1px solid" borderColor="teal.200">
-                    <HStack spacing={2} mb={2}>
-                      <Icon as={FiTruck} color="teal.500" />
-                      <Text fontWeight="semibold">Eveniment Transport Creat</Text>
-                    </HStack>
-                    <Button
-                      size="sm"
-                      colorScheme="teal"
-                      leftIcon={<Icon as={FiCalendar} />}
-                      onClick={() => {
-                        onViewClose();
-                        navigate(`/user/calendar?event=${selectedRequest.transport_event_id}`);
-                      }}
-                    >
-                      Vezi în Calendar
-                    </Button>
-                  </Box>
+                  <Button
+                    colorScheme="teal"
+                    leftIcon={<Icon as={FiCalendar} />}
+                    onClick={() => {
+                      onViewClose();
+                      navigate(`/user/calendar?event=${selectedRequest.transport_event_id}`);
+                    }}
+                  >
+                    Vezi eveniment transport în calendar
+                  </Button>
                 )}
 
-                <Divider />
-
-                {/* Acțiuni pentru cereri PENDING */}
                 {selectedRequest.status === 'PENDING' && (user?.roles?.includes('INSPECTOR') || user?.roles?.includes('SUPER_ADMIN') || user?.roles?.includes('DEPARTMENT_ADMIN') || user?.roles?.includes('ADMIN') || user?.roles?.includes('WAREHOUSE_KEEPER')) && (
-                  <Box>
-                    <Text fontWeight="semibold" mb={3}>Acțiuni</Text>
+                  <>
+                    <Divider />
                     <HStack spacing={3}>
                       <Button
+                        flex={1}
                         colorScheme="green"
                         leftIcon={<Icon as={FiCheck} />}
                         onClick={() => {
@@ -672,7 +717,9 @@ export default function MaterialRequestsPage() {
                         Aprobă
                       </Button>
                       <Button
+                        flex={1}
                         colorScheme="red"
+                        variant="outline"
                         leftIcon={<Icon as={FiX} />}
                         onClick={() => {
                           onViewClose();
@@ -682,23 +729,21 @@ export default function MaterialRequestsPage() {
                         Respinge
                       </Button>
                     </HStack>
-                  </Box>
+                  </>
                 )}
               </VStack>
             )}
           </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" onClick={onViewClose}>
-              Închide
-            </Button>
+          <ModalFooter bg={cardBgColor}>
+            <Button variant="ghost" onClick={onViewClose}>Închide</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
 
       {/* Modal pentru aprobare - Redesign cu crearea evenimentului de transport */}
-      <Modal isOpen={isApproveOpen} onClose={onApproveClose} size="lg">
-        <ModalOverlay />
-        <ModalContent>
+      <Modal isOpen={isApproveOpen} onClose={onApproveClose} size="lg" isCentered scrollBehavior="inside">
+        <ModalOverlay backdropFilter="blur(8px)" />
+        <ModalContent maxH="90vh" mx={4}>
           <ModalHeader>
             <HStack>
               <Icon as={FiCheck} color="green.500" />
@@ -784,19 +829,20 @@ export default function MaterialRequestsPage() {
                       )}
                     </FormControl>
 
-                    {/* Cantitatea aprobată (admin poate ajusta) */}
+                    {/* Cantitatea aprobată — fixă, egală cu cererea */}
                     <FormControl>
-                      <FormLabel>Cantitate Aprobată</FormLabel>
-                      <NumberInput
-                        value={approvalQuantity}
-                        min={0}
-                        max={selectedRequest.quantity_requested}
-                        onChange={(valueString, valueNumber) => setApprovalQuantity(valueNumber)}
-                      >
-                        <NumberInputField />
-                      </NumberInput>
+                      <FormLabel color={mutedTextColor}>Cantitate Aprobată</FormLabel>
+                      <Input
+                        value={`${selectedRequest.quantity_requested} ${selectedRequest.product_unit}`}
+                        isReadOnly
+                        bg={readonlyInputBg}
+                        color={readonlyInputColor}
+                        cursor="not-allowed"
+                        borderColor={readonlyInputBorder}
+                        _focus={{ borderColor: readonlyInputBorder, boxShadow: 'none' }}
+                      />
                       <Text fontSize="xs" color={mutedTextColor}>
-                        Poți ajusta cantitatea aprobată (maxim {selectedRequest.quantity_requested} {selectedRequest.product_unit})
+                        Cantitatea aprobată este aceeași cu cea solicitată și nu poate fi modificată.
                       </Text>
                     </FormControl>
 
@@ -822,6 +868,7 @@ export default function MaterialRequestsPage() {
                   </Button>
                   <Button 
                     colorScheme="green" 
+                    color="white"
                     onClick={handleApprove}
                     isDisabled={!transportDate || !selectedSupplier}
                   >

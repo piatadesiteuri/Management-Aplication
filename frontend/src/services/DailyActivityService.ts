@@ -115,12 +115,22 @@ export class DailyActivityService {
         }
     }
 
-    // Finalizează fișa activității
-    static async finalizeDailyActivity(date: string): Promise<void> {
+    // Finalizează luna pentru vehiculul selectat
+    static async finalizeDailyActivity(year: number, month: string, vehicleId: number): Promise<void> {
         try {
-            await api.post('/daily-activity/finalize-daily', { date });
+            await api.post('/daily-activity/finalize-daily', { year, month, vehicleId });
         } catch (error) {
             console.error('Error finalizing daily activity:', error);
+            throw error;
+        }
+    }
+
+    // Redeschide luna pentru editare
+    static async reopenDailyActivity(year: number, month: string, vehicleId: number): Promise<void> {
+        try {
+            await api.post('/daily-activity/reopen-daily', { year, month, vehicleId });
+        } catch (error) {
+            console.error('Error reopening daily activity:', error);
             throw error;
         }
     }

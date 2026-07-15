@@ -101,6 +101,7 @@ interface Material {
   status: string;
   created_at: string;
   created_by_name: string;
+  from_metadata?: boolean;
 }
 
 interface Product {
@@ -177,6 +178,12 @@ export default function EventSupplies({
   const cardBg = useColorModeValue('gray.50', 'gray.700');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
   const textColor = useColorModeValue('gray.800', 'white');
+  const labelColor = useColorModeValue('gray.600', 'gray.300');
+  const mutedColor = useColorModeValue('gray.500', 'gray.400');
+  const accentGreen = useColorModeValue('green.600', 'green.200');
+  const accentOrange = useColorModeValue('orange.600', 'orange.200');
+  const headerBg = useColorModeValue('gray.700', 'gray.600');
+  const readonlyValueColor = useColorModeValue('gray.500', 'gray.400');
 
   // Animation variants
   const containerVariants = {
@@ -230,7 +237,8 @@ export default function EventSupplies({
         operation_type: material.operation_type || 'MOVEMENT',
         status: material.status || 'PLANNED',
         created_at: material.created_at || '',
-        created_by_name: material.created_by_name || ''
+        created_by_name: material.created_by_name || '',
+        from_metadata: material.from_metadata === true
       }));
       
       setSupplies(transformedSupplies);
@@ -551,192 +559,63 @@ export default function EventSupplies({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="6xl" scrollBehavior="inside" motionPreset="slideInBottom">
-      <ModalOverlay backdropFilter="blur(10px)" bg="blackAlpha.600" />
-      <ModalContent 
-        bg={bgColor} 
-        borderRadius="3xl" 
-        shadow="2xl"
-        border="1px solid"
-        borderColor={borderColor}
-        maxH="90vh"
-      >
-        {/* Header cu gradient */}
-        <Box
-          bgGradient="linear(135deg, teal.500, blue.600)"
-          color="white"
-          p={6}
-          position="relative"
-          overflow="hidden"
-          _before={{
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            bgGradient: 'linear(45deg, transparent, whiteAlpha.100, transparent)',
-            animation: 'shimmer 3s ease-in-out infinite',
-          }}
-        >
-          <Flex align="center" justify="space-between">
-            <HStack spacing={4}>
-              <Box
-                bg="whiteAlpha.200"
-                p={3}
-                borderRadius="xl"
-                backdropFilter="blur(10px)"
-              >
-                <Icon as={FiPackage} boxSize={8} />
-              </Box>
-              <VStack align="start" spacing={1}>
-                <Heading size="xl" fontWeight="bold" letterSpacing="tight">
-                  Materiale Evenimente
-                </Heading>
-                <Text fontSize="lg" opacity={0.9} fontWeight="medium">
-                  {eventTitle}
-                </Text>
-                <HStack spacing={3}>
-                  <Badge bg="whiteAlpha.300" color="white" px={3} py={1} borderRadius="full">
-                    {new Date(eventDate).toLocaleDateString('ro-RO')}
-                  </Badge>
-                  <Badge bg="whiteAlpha.300" color="white" px={3} py={1} borderRadius="full">
-                    {eventStatus}
-                  </Badge>
-                </HStack>
-              </VStack>
+    <Modal isOpen={isOpen} onClose={onClose} size="4xl" scrollBehavior="inside" isCentered blockScrollOnMount={false}>
+      <ModalOverlay bg="blackAlpha.500" />
+      <ModalContent bg={bgColor} maxH="85vh" mx={4} borderRadius="lg">
+        <ModalHeader borderBottomWidth="1px" borderColor={borderColor} py={4}>
+          <VStack align="start" spacing={1}>
+            <Heading size="md" color={textColor}>Materiale eveniment</Heading>
+            <Text fontSize="sm" color={labelColor} fontWeight="normal">{eventTitle}</Text>
+            <HStack spacing={2}>
+              <Badge variant="outline" colorScheme="gray">
+                {new Date(eventDate).toLocaleDateString('ro-RO')}
+              </Badge>
+              <Badge colorScheme={eventStatus === 'COMPLETED' ? 'green' : 'gray'}>
+                {eventStatus}
+              </Badge>
             </HStack>
-            <ModalCloseButton
-              position="static"
-              color="white"
-              size="lg"
-              _hover={{ bg: 'whiteAlpha.200', transform: 'rotate(90deg)' }}
-              transition="all 0.2s"
-            />
+          </VStack>
+        </ModalHeader>
+        <ModalCloseButton />
+
+        <ModalBody py={4}>
+          <HStack spacing={6} mb={4} flexWrap="wrap" fontSize="sm" color={labelColor}>
+            <Text><Text as="span" fontWeight="bold" color={textColor}>{totalMaterials}</Text> materiale</Text>
+            <Text>Total: <Text as="span" fontWeight="bold" color={accentGreen}>{totalValue.toFixed(2)} RON</Text></Text>
+            {pendingMaterials > 0 && (
+              <Text>În așteptare: <Text as="span" fontWeight="bold" color={accentOrange}>{pendingMaterials}</Text></Text>
+            )}
+          </HStack>
+
+          <Flex direction={{ base: 'column', md: 'row' }} gap={3} mb={4} align="end">
+            <FormControl flex={1}>
+              <FormLabel fontSize="sm">Căutare</FormLabel>
+              <Input
+                placeholder="Nume sau cod produs..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                size="sm"
+              />
+            </FormControl>
+            <FormControl w={{ base: 'full', md: '180px' }}>
+              <FormLabel fontSize="sm">Status</FormLabel>
+              <Select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} size="sm">
+                <option value="all">Toate</option>
+                <option value="PENDING">În așteptare</option>
+                <option value="APPROVED">Aprobat</option>
+                <option value="IN_USE">În utilizare</option>
+                <option value="COMPLETED">Finalizat</option>
+              </Select>
+            </FormControl>
+            {canEdit && (
+              <Button leftIcon={<FiPlus />} size="sm" onClick={() => setShowAddForm(!showAddForm)}>
+                Adaugă
+              </Button>
+            )}
+            <Button leftIcon={<FiRefreshCw />} size="sm" variant="outline" onClick={loadAllData} isLoading={loading}>
+              Reîncarcă
+            </Button>
           </Flex>
-        </Box>
-
-        <ModalBody 
-          py={6}
-        >
-          <MotionBox
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            {/* Statistici rapide */}
-            <MotionCard variants={itemVariants} mb={6}>
-              <CardBody p={6}>
-                <SimpleGrid columns={{ base: 2, md: 4 }} spacing={6}>
-                  <Stat textAlign="center">
-                    <StatLabel color="gray.500" fontSize="sm">Total Materiale</StatLabel>
-                    <StatNumber fontSize="2xl" color="blue.500" fontWeight="bold">
-                      {totalMaterials}
-                    </StatNumber>
-                    <StatHelpText>
-                      <Icon as={FiBox} mr={1} />
-                      Articole necesare
-                    </StatHelpText>
-                  </Stat>
-
-                  <Stat textAlign="center">
-                    <StatLabel color="gray.500" fontSize="sm">Valoare Totală</StatLabel>
-                    <StatNumber fontSize="2xl" color="green.500" fontWeight="bold">
-                      {totalValue.toFixed(2)} RON
-                    </StatNumber>
-                    <StatHelpText>
-                      <Icon as={FiDollarSign} mr={1} />
-                      Cost estimat
-                    </StatHelpText>
-                  </Stat>
-
-                  <Stat textAlign="center">
-                    <StatLabel color="gray.500" fontSize="sm">În Așteptare</StatLabel>
-                    <StatNumber fontSize="2xl" color="orange.500" fontWeight="bold">
-                      {pendingMaterials}
-                    </StatNumber>
-                    <StatHelpText>
-                      <Icon as={FiClock} mr={1} />
-                      Necesită aprobare
-                    </StatHelpText>
-                  </Stat>
-
-                  <Stat textAlign="center">
-                    <StatLabel color="gray.500" fontSize="sm">Prioritate Critică</StatLabel>
-                    <StatNumber fontSize="2xl" color="red.500" fontWeight="bold">
-                      0
-                    </StatNumber>
-                    <StatHelpText>
-                      <Icon as={FiAlertTriangle} mr={1} />
-                      Urgent necesare
-                    </StatHelpText>
-                  </Stat>
-                </SimpleGrid>
-              </CardBody>
-            </MotionCard>
-
-            {/* Controale și filtre */}
-            <MotionCard variants={itemVariants} mb={6}>
-              <CardBody p={6}>
-                <Flex direction={{ base: 'column', md: 'row' }} gap={4} align="end">
-                  <FormControl flex={1}>
-                    <FormLabel fontSize="sm" fontWeight="semibold">Căutare materiale</FormLabel>
-                    <Input
-                      placeholder="Căutați după nume sau cod produs..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      borderRadius="lg"
-                      bg={cardBg}
-                    />
-                  </FormControl>
-
-                  <FormControl w={{ base: 'full', md: '200px' }}>
-                    <FormLabel fontSize="sm" fontWeight="semibold">Filtrare status</FormLabel>
-                    <Select
-                      value={filterStatus}
-                      onChange={(e) => setFilterStatus(e.target.value)}
-                      borderRadius="lg"
-                      bg={cardBg}
-                    >
-                      <option value="all">Toate statusurile</option>
-                      <option value="PENDING">În așteptare</option>
-                      <option value="APPROVED">Aprobat</option>
-                      <option value="IN_USE">În utilizare</option>
-                      <option value="COMPLETED">Finalizat</option>
-                    </Select>
-                  </FormControl>
-
-                  {canEdit && (
-                    <MotionButton
-                      leftIcon={<FiPlus />}
-                      colorScheme="teal"
-                      size="lg"
-                      borderRadius="xl"
-                      px={6}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setShowAddForm(!showAddForm)}
-                    >
-                      Adaugă Material
-                    </MotionButton>
-                  )}
-
-                  <MotionButton
-                    leftIcon={<FiRefreshCw />}
-                    variant="outline"
-                    size="lg"
-                    borderRadius="xl"
-                    px={6}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={loadAllData}
-                    isLoading={loading}
-                  >
-                    Reîncarcă
-                  </MotionButton>
-                </Flex>
-              </CardBody>
-            </MotionCard>
 
             {/* Formular pentru adăugarea materialelor */}
             <AnimatePresence>
@@ -878,66 +757,37 @@ export default function EventSupplies({
             </AnimatePresence>
 
             {/* Lista materialelor */}
-            <MotionCard variants={itemVariants}>
-              <CardBody p={0}>
+            <Box borderWidth="1px" borderColor={borderColor} borderRadius="md" overflow="hidden">
                 {loading ? (
-                  <Flex justify="center" align="center" h="200px">
-                    <VStack spacing={4}>
-                      <Spinner size="xl" color="teal.500" thickness="4px" />
-                      <Text color="gray.500" fontSize="lg">
-                        Se încarcă materialele...
-                      </Text>
-                    </VStack>
+                  <Flex justify="center" align="center" h="160px">
+                    <Spinner size="lg" />
                   </Flex>
                 ) : filteredSupplies.length === 0 ? (
-                  <Flex justify="center" align="center" h="200px" direction="column">
-                    <Icon as={FiPackage} boxSize={16} color="gray.300" mb={4} />
-                    <Text fontSize="xl" fontWeight="semibold" color="gray.500" mb={2}>
-                      {totalMaterials === 0 ? 'Niciun material adăugat încă' : 'Niciun material găsit'}
+                  <Flex justify="center" align="center" h="160px" direction="column">
+                    <Text color={labelColor} mb={1}>
+                      {totalMaterials === 0 ? 'Niciun material adăugat' : 'Niciun material găsit'}
                     </Text>
-                    <Text fontSize="md" color="gray.400" textAlign="center">
-                      {totalMaterials === 0 
-                        ? 'Folosiți butonul "Adaugă Material" pentru a începe.'
-                        : 'Încercați să modificați filtrele de căutare.'
-                      }
+                    <Text fontSize="sm" color={mutedColor}>
+                      {totalMaterials === 0 && canEdit ? 'Apasă Adaugă pentru a adăuga materiale.' : 'Modifică filtrele de căutare.'}
                     </Text>
                   </Flex>
                 ) : (
                   <>
                     <TableContainer>
-                      <Table variant="simple" size="md">
+                      <Table variant="simple" size="sm">
                         <Thead bg={cardBg}>
                           <Tr>
-                            <Th border="none" py={4} fontSize="sm" fontWeight="bold" color="gray.600">
-                              Produs
-                            </Th>
-                            <Th border="none" py={4} fontSize="sm" fontWeight="bold" color="gray.600">
-                              Cantitate
-                            </Th>
-                            <Th border="none" py={4} fontSize="sm" fontWeight="bold" color="gray.600">
-                              Cost/Unitate
-                            </Th>
-                            <Th border="none" py={4} fontSize="sm" fontWeight="bold" color="gray.600">
-                              Total
-                            </Th>
-                            <Th border="none" py={4} fontSize="sm" fontWeight="bold" color="gray.600">
-                              Status
-                            </Th>
-                            <Th border="none" py={4} fontSize="sm" fontWeight="bold" color="gray.600">
-                              Acțiuni
-                            </Th>
+                            <Th>Produs</Th>
+                            <Th>Cantitate</Th>
+                            <Th isNumeric>Cost/unit</Th>
+                            <Th isNumeric>Total</Th>
+                            <Th>Status</Th>
+                            <Th>Acțiuni</Th>
                           </Tr>
                         </Thead>
                         <Tbody>
-                          <AnimatePresence>
-                            {currentSupplies.map((material, index) => (
-                              <motion.tr
-                                key={material.id}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -20 }}
-                                transition={{ delay: index * 0.05 }}
-                              >
+                            {currentSupplies.map((material) => (
+                              <Tr key={material.id}>
                                 <Td border="none" py={4}>
                                   <VStack align="start" spacing={1}>
                                     <Text fontWeight="semibold" fontSize="md">
@@ -1010,9 +860,10 @@ export default function EventSupplies({
                                         colorScheme="blue"
                                         onClick={() => handleEditMaterial(material)}
                                         aria-label="Editează"
+                                        isDisabled={material.from_metadata}
                                       />
                                     </Tooltip>
-                                    <Tooltip label="Șterge material">
+                                    <Tooltip label={material.from_metadata ? 'Material din cererea de aprovizionare' : 'Șterge material'}>
                                       <IconButton
                                         icon={<FiTrash2 />}
                                         size="sm"
@@ -1020,13 +871,13 @@ export default function EventSupplies({
                                         colorScheme="red"
                                         onClick={() => handleDeleteConfirm(material)}
                                         aria-label="Șterge"
+                                        isDisabled={material.from_metadata}
                                       />
                                     </Tooltip>
                                   </HStack>
                                 </Td>
-                              </motion.tr>
+                              </Tr>
                             ))}
-                          </AnimatePresence>
                         </Tbody>
                       </Table>
                     </TableContainer>
@@ -1130,17 +981,12 @@ export default function EventSupplies({
                     )}
                   </>
                 )}
-              </CardBody>
-            </MotionCard>
-            
-            {/* Spațiu suplimentar pentru a forța scroll-ul */}
-            <Box h="200px" display="flex" alignItems="center" justifyContent="center">
-              <Text color="gray.400" fontSize="sm">
-                Sfârșitul listei de materiale
-              </Text>
             </Box>
-          </MotionBox>
         </ModalBody>
+
+        <ModalFooter borderTopWidth="1px" borderColor={borderColor} py={3}>
+          <Button variant="ghost" onClick={onClose}>Închide</Button>
+        </ModalFooter>
       </ModalContent>
 
       {/* Modal pentru Detalii Stoc */}
@@ -1150,6 +996,7 @@ export default function EventSupplies({
         size="2xl"
         motionPreset="slideInBottom"
         isCentered
+        scrollBehavior="inside"
       >
         <ModalOverlay backdropFilter="blur(10px)" bg="blackAlpha.600" />
         <ModalContent 
@@ -1159,9 +1006,11 @@ export default function EventSupplies({
           shadow="2xl"
           border="1px solid"
           borderColor={borderColor}
+          maxH="90vh"
+          mx={4}
         >
           <ModalHeader
-            bgGradient="linear(135deg, teal.500, blue.600)"
+            bg={headerBg}
             color="white"
             p={6}
           >
@@ -1196,20 +1045,20 @@ export default function EventSupplies({
                   <CardBody pt={0}>
                     <SimpleGrid columns={2} spacing={4}>
                       <Box>
-                        <Text fontSize="sm" color="gray.500" mb={1}>Nume Produs</Text>
-                        <Text fontSize="md" fontWeight="semibold">{selectedMaterial.product_name}</Text>
+                        <Text fontSize="sm" color={labelColor} mb={1}>Nume Produs</Text>
+                        <Text fontSize="md" fontWeight="semibold" color={textColor}>{selectedMaterial.product_name}</Text>
                       </Box>
                       <Box>
-                        <Text fontSize="sm" color="gray.500" mb={1}>Cod Produs</Text>
-                        <Text fontSize="md" fontWeight="semibold">{selectedMaterial.product_code}</Text>
+                        <Text fontSize="sm" color={labelColor} mb={1}>Cod Produs</Text>
+                        <Text fontSize="md" fontWeight="semibold" color={textColor}>{selectedMaterial.product_code}</Text>
                       </Box>
                       <Box>
-                        <Text fontSize="sm" color="gray.500" mb={1}>Categorie</Text>
-                        <Text fontSize="md" fontWeight="semibold">{selectedMaterial.product_category_name}</Text>
+                        <Text fontSize="sm" color={labelColor} mb={1}>Categorie</Text>
+                        <Text fontSize="md" fontWeight="semibold" color={textColor}>{selectedMaterial.product_category_name}</Text>
                       </Box>
                       <Box>
-                        <Text fontSize="sm" color="gray.500" mb={1}>Unitate</Text>
-                        <Text fontSize="md" fontWeight="semibold">{selectedMaterial.product_unit}</Text>
+                        <Text fontSize="sm" color={labelColor} mb={1}>Unitate</Text>
+                        <Text fontSize="md" fontWeight="semibold" color={textColor}>{selectedMaterial.product_unit}</Text>
                       </Box>
                     </SimpleGrid>
                   </CardBody>
@@ -1223,8 +1072,8 @@ export default function EventSupplies({
                   <CardBody pt={0}>
                     <SimpleGrid columns={2} spacing={6}>
                       <Stat textAlign="center">
-                        <StatLabel color="gray.500" fontSize="sm">Stoc Disponibil</StatLabel>
-                        <StatNumber fontSize="2xl" color="green.500" fontWeight="bold">
+                        <StatLabel color={labelColor} fontSize="sm">Stoc Disponibil</StatLabel>
+                        <StatNumber fontSize="2xl" color={accentGreen} fontWeight="bold">
                           {selectedMaterial.product_current_stock}
                         </StatNumber>
                         <StatHelpText>
@@ -1234,8 +1083,8 @@ export default function EventSupplies({
                       </Stat>
 
                       <Stat textAlign="center">
-                        <StatLabel color="gray.500" fontSize="sm">Cantitate Necesară</StatLabel>
-                        <StatNumber fontSize="2xl" color="blue.500" fontWeight="bold">
+                        <StatLabel color={labelColor} fontSize="sm">Cantitate Necesară</StatLabel>
+                        <StatNumber fontSize="2xl" color={readonlyValueColor} fontWeight="bold">
                           {selectedMaterial.quantity}
                         </StatNumber>
                         <StatHelpText>
@@ -1277,25 +1126,25 @@ export default function EventSupplies({
                   <CardBody pt={0}>
                     <SimpleGrid columns={2} spacing={4}>
                       <Box>
-                        <Text fontSize="sm" color="gray.500" mb={1}>Cost Unitar</Text>
-                        <Text fontSize="lg" fontWeight="bold" color="blue.600">
+                        <Text fontSize="sm" color={labelColor} mb={1}>Cost Unitar</Text>
+                        <Text fontSize="lg" fontWeight="bold" color={textColor}>
                           {selectedMaterial.unit_cost.toFixed(2)} RON
                         </Text>
                       </Box>
                       <Box>
-                        <Text fontSize="sm" color="gray.500" mb={1}>Valoare Totală</Text>
-                        <Text fontSize="lg" fontWeight="bold" color="green.600">
+                        <Text fontSize="sm" color={labelColor} mb={1}>Valoare Totală</Text>
+                        <Text fontSize="lg" fontWeight="bold" color={accentGreen}>
                           {(selectedMaterial.quantity * selectedMaterial.unit_cost).toFixed(2)} RON
                         </Text>
                       </Box>
                       <Box>
-                        <Text fontSize="sm" color="gray.500" mb={1}>Valoare Stoc Disponibil</Text>
-                        <Text fontSize="md" fontWeight="semibold" color="purple.600">
+                        <Text fontSize="sm" color={labelColor} mb={1}>Valoare Stoc Disponibil</Text>
+                        <Text fontSize="md" fontWeight="semibold" color={textColor}>
                           {(selectedMaterial.product_current_stock * selectedMaterial.unit_cost).toFixed(2)} RON
                         </Text>
                       </Box>
                       <Box>
-                        <Text fontSize="sm" color="gray.500" mb={1}>Status</Text>
+                        <Text fontSize="sm" color={labelColor} mb={1}>Status</Text>
                         <Badge
                           colorScheme={getStatusColor(selectedMaterial.status)}
                           variant="solid"
@@ -1318,7 +1167,7 @@ export default function EventSupplies({
                       <Heading size="md">Notițe</Heading>
                     </CardHeader>
                     <CardBody pt={0}>
-                      <Text fontSize="md" color="gray.700" whiteSpace="pre-wrap">
+                      <Text fontSize="md" color={textColor} whiteSpace="pre-wrap">
                         {selectedMaterial.notes}
                       </Text>
                     </CardBody>

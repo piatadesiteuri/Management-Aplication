@@ -9,12 +9,14 @@ import {
   useColorModeValue,
   InputGroup,
   InputLeftElement,
+  InputRightElement,
+  IconButton,
   FormControl,
   FormErrorMessage,
   useToast,
 } from '@chakra-ui/react';
 import { useState } from 'react';
-import { FaFacebookF, FaGoogle, FaEnvelope, FaLock, FaUser } from 'react-icons/fa';
+import { FaFacebookF, FaGoogle, FaEnvelope, FaLock, FaUser, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import { keyframes } from '@emotion/react';
 import { useAuth } from '../hooks/useAuth';
@@ -36,6 +38,7 @@ export default function Login() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [errors, setErrors] = useState<{ email?: string; password?: string; name?: string }>({});
   const { login } = useAuth();
@@ -415,13 +418,14 @@ export default function Login() {
                         </InputLeftElement>
                         <Input
                           placeholder="Parolă"
-                          type="password"
+                          type={showPassword ? 'text' : 'password'}
                           size="lg"
                           bg={bgColor}
                           borderColor={borderColor}
                           color={textColor}
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
+                          pr="3rem"
                           _focus={{
                             borderColor: primaryColor,
                             boxShadow: `0 0 0 1px ${primaryColor}`
@@ -429,6 +433,17 @@ export default function Login() {
                           _placeholder={{ color: mutedTextColor }}
                           transition="all 0.3s ease"
                         />
+                        <InputRightElement h="full">
+                          <IconButton
+                            aria-label={showPassword ? 'Ascunde parola' : 'Arată parola'}
+                            icon={showPassword ? <FaEyeSlash /> : <FaEye />}
+                            variant="ghost"
+                            size="sm"
+                            color={mutedTextColor}
+                            onClick={() => setShowPassword((prev) => !prev)}
+                            tabIndex={-1}
+                          />
+                        </InputRightElement>
                       </InputGroup>
                       <FormErrorMessage>{errors.password}</FormErrorMessage>
                     </FormControl>

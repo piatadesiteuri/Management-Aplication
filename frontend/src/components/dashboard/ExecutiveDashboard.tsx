@@ -31,6 +31,13 @@ import {
   ScaleFade,
   Fade,
   SlideFade,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  TableContainer,
 } from '@chakra-ui/react';
 import {
   FiTrendingUp,
@@ -51,6 +58,7 @@ import {
   FiZap,
   FiStar,
   FiAward,
+  FiPackage,
 } from 'react-icons/fi';
 import { KPIService, DashboardKPIs } from '../../services/KPIService';
 import { keyframes } from '@emotion/react';
@@ -74,6 +82,21 @@ const shimmer = keyframes`
   0% { background-position: -200px 0; }
   100% { background-position: calc(200px + 100%) 0; }
 `;
+
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  SUPPLY_ORDER: 'Comenzi aprovizionare',
+  TRANSPORT_DELIVERY: 'Transport livrări',
+  INSPECTION: 'Inspecții',
+  MEETING: 'Ședințe',
+  TRAINING: 'Formare',
+  TRAVEL: 'Deplasări',
+  STOCK_RECEPTION: 'Primire marfă',
+  STOCK_DISTRIBUTION: 'Distribuire marfă',
+  STOCK_MOVEMENT: 'Mutare marfă',
+  INVENTORY_AUDIT: 'Inventariere',
+  MAINTENANCE: 'Întreținere',
+  OTHER: 'Altele',
+};
 
 export default function ExecutiveDashboard({ user }: ExecutiveDashboardProps) {
   const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
@@ -101,7 +124,7 @@ export default function ExecutiveDashboard({ user }: ExecutiveDashboardProps) {
   const loadKPIs = async () => {
     try {
       setLoading(true);
-      const data = await KPIService.getDashboardKPIs();
+      const data = await KPIService.getDashboardKPIs(period);
       setKpis(data);
     } catch (error) {
       console.error('Error loading KPIs:', error);
@@ -284,14 +307,14 @@ export default function ExecutiveDashboard({ user }: ExecutiveDashboardProps) {
                 color="gray.500"
                 textAlign="center"
               >
-                Se încarcă KPI-urile DSPD...
+                Se încarcă indicatorii operaționali...
               </Text>
               <Text 
                 fontSize="sm" 
                 color="gray.400"
                 textAlign="center"
               >
-                Pregătim datele pentru analiză
+                Date reale din baza de date
               </Text>
             </VStack>
           </Fade>
@@ -358,10 +381,10 @@ export default function ExecutiveDashboard({ user }: ExecutiveDashboardProps) {
         <Flex justify="space-between" align="center" position="relative" zIndex={1}>
           <VStack align="start" spacing={2}>
             <Heading size="lg" color="white">
-              📊 Dashboard Executive DSPD Dolj
+              Business Intelligence — Spital Brașov
             </Heading>
             <Text color="white" fontSize="md" opacity={0.9}>
-              Indicatori de performanță pentru Direcția de Sănătate Publică Dolj
+              Indicatori operaționali calculați din evenimente, task-uri, vehicule și costuri
             </Text>
           </VStack>
           
@@ -423,6 +446,9 @@ export default function ExecutiveDashboard({ user }: ExecutiveDashboardProps) {
             <FiCalendar color="green.500" />
             <Text fontSize="sm" color="gray.600">
               📅 Perioada: <strong>{getPeriodLabel(period)}</strong>
+              {kpis.period && (
+                <> ({kpis.period.startDate} — {kpis.period.endDate})</>
+              )}
             </Text>
           </HStack>
         </Box>
@@ -432,11 +458,11 @@ export default function ExecutiveDashboard({ user }: ExecutiveDashboardProps) {
       <Grid templateColumns="repeat(12, 1fr)" gap={6} mb={8}>
         <GridItem colSpan={{ base: 12, md: 6, lg: 3 }}>
           <ModernStatCard
-            title="Cazuri Monitorizate"
-            value={kpis.epidemiological.totalCases}
-            subtitle="Focare epidemiologice"
-            icon={FiAlertTriangle}
-            color="red"
+            title="Total Evenimente"
+            value={kpis.events.total}
+            subtitle="În perioada selectată"
+            icon={FiCalendar}
+            color="blue"
             type="number"
             delay={0.1}
           />
@@ -444,9 +470,9 @@ export default function ExecutiveDashboard({ user }: ExecutiveDashboardProps) {
 
         <GridItem colSpan={{ base: 12, md: 6, lg: 3 }}>
           <ModernStatCard
-            title="Rata de Răspuns"
-            value={kpis.epidemiological.responseRate}
-            subtitle="La focare epidemiologice"
+            title="Rata Finalizare"
+            value={kpis.events.completionRate}
+            subtitle="Evenimente completate"
             icon={FiActivity}
             color="green"
             type="percentage"
@@ -457,12 +483,12 @@ export default function ExecutiveDashboard({ user }: ExecutiveDashboardProps) {
 
         <GridItem colSpan={{ base: 12, md: 6, lg: 3 }}>
           <ModernStatCard
-            title="Timp Răspuns"
-            value={kpis.epidemiological.avgResponseTime}
-            subtitle="Ore medie"
-            icon={FiClock}
+            title="Comenzi Aprovizionare"
+            value={kpis.events.supplyOrders}
+            subtitle="SUPPLY_ORDER"
+            icon={FiPackage}
             color="orange"
-            type="time"
+            type="number"
             delay={0.3}
           />
         </GridItem>
@@ -470,10 +496,10 @@ export default function ExecutiveDashboard({ user }: ExecutiveDashboardProps) {
         <GridItem colSpan={{ base: 12, md: 6, lg: 3 }}>
           <ModernStatCard
             title="Inspecții"
-            value={kpis.inspection.totalInspections}
-            subtitle="Sanitare completate"
+            value={kpis.events.inspections}
+            subtitle="Evenimente de tip inspecție"
             icon={FiCheckCircle}
-            color="blue"
+            color="teal"
             type="number"
             delay={0.4}
           />
@@ -484,34 +510,34 @@ export default function ExecutiveDashboard({ user }: ExecutiveDashboardProps) {
       <Grid templateColumns="repeat(12, 1fr)" gap={6} mb={8}>
         <GridItem colSpan={{ base: 12, md: 6, lg: 4 }}>
           <ModernStatCard
-            title="Rata de Conformitate"
-            value={kpis.inspection.complianceRate}
-            subtitle="Unități inspectate"
-            icon={FiBarChart}
-            color="green"
-            type="percentage"
-            trend="up"
+            title="Transporturi"
+            value={kpis.events.transportDeliveries}
+            subtitle="Livrări materiale"
+            icon={FiTruck}
+            color="purple"
+            type="number"
             delay={0.5}
           />
         </GridItem>
 
         <GridItem colSpan={{ base: 12, md: 6, lg: 4 }}>
           <ModernStatCard
-            title="Eficiența Vehiculelor"
-            value={kpis.operational.vehicleEfficiency}
-            subtitle="RON/km"
-            icon={FiTruck}
-            color="purple"
-            type="cost"
+            title="Conformitate Inspecții"
+            value={kpis.inspection.complianceRate}
+            subtitle="Inspecții finalizate"
+            icon={FiBarChart}
+            color="green"
+            type="percentage"
+            trend="up"
             delay={0.6}
           />
         </GridItem>
 
         <GridItem colSpan={{ base: 12, md: 6, lg: 4 }}>
           <ModernStatCard
-            title="Utilizarea Resurselor"
-            value={kpis.operational.resourceUtilization}
-            subtitle="Vehicule active"
+            title="Utilizare Vehicule"
+            value={kpis.vehicles.utilizationRate}
+            subtitle={`${kpis.vehicles.active} active din ${kpis.vehicles.total}`}
             icon={FiUsers}
             color="teal"
             type="percentage"
@@ -543,31 +569,31 @@ export default function ExecutiveDashboard({ user }: ExecutiveDashboardProps) {
                 <FiCalendar size={24} color="blue.500" />
                 <Text fontSize="sm" color="gray.500" fontWeight="medium">Total Evenimente</Text>
                 <Text fontSize="2xl" fontWeight="bold" color="blue.500">
-                  {KPIService.formatNumber(kpis.summary.totalEvents)}
+                  {KPIService.formatNumber(kpis.events.total)}
                 </Text>
               </VStack>
               
               <VStack spacing={3} p={4} bg={glassBg} borderRadius="xl">
                 <FiCheckCircle size={24} color="green.500" />
-                <Text fontSize="sm" color="gray.500" fontWeight="medium">Total Task-uri</Text>
+                <Text fontSize="sm" color="gray.500" fontWeight="medium">Task-uri</Text>
                 <Text fontSize="2xl" fontWeight="bold" color="green.500">
-                  {KPIService.formatNumber(kpis.summary.totalTasks)}
+                  {kpis.tasks.completed} / {kpis.tasks.total}
                 </Text>
               </VStack>
               
               <VStack spacing={3} p={4} bg={glassBg} borderRadius="xl">
                 <FiTruck size={24} color="purple.500" />
-                <Text fontSize="sm" color="gray.500" fontWeight="medium">Vehicule Active</Text>
+                <Text fontSize="sm" color="gray.500" fontWeight="medium">Distanță parcursă</Text>
                 <Text fontSize="2xl" fontWeight="bold" color="purple.500">
-                  {kpis.summary.activeVehicles} / {kpis.summary.totalVehicles}
+                  {KPIService.formatNumber(kpis.vehicles.totalDistance)} km
                 </Text>
               </VStack>
               
               <VStack spacing={3} p={4} bg={glassBg} borderRadius="xl">
                 <FiDollarSign size={24} color="orange.500" />
-                <Text fontSize="sm" color="gray.500" fontWeight="medium">Costuri Operaționale</Text>
+                <Text fontSize="sm" color="gray.500" fontWeight="medium">Costuri operaționale</Text>
                 <Text fontSize="2xl" fontWeight="bold" color="orange.500">
-                  {KPIService.formatCost(kpis.operational.operationalCosts)}
+                  {KPIService.formatCost(kpis.costs.operationalTotal)}
                 </Text>
               </VStack>
             </SimpleGrid>
@@ -599,11 +625,11 @@ export default function ExecutiveDashboard({ user }: ExecutiveDashboardProps) {
                     <Text fontSize="sm" fontWeight="medium">Completarea Task-urilor</Text>
                   </HStack>
                   <Text fontSize="sm" color="gray.500" fontWeight="semibold">
-                    {KPIService.formatPercentage(kpis.performance.taskCompletionRate)}
+                    {KPIService.formatPercentage(kpis.tasks.completionRate)}
                   </Text>
                 </Flex>
                 <Progress 
-                  value={kpis.performance.taskCompletionRate} 
+                  value={kpis.tasks.completionRate} 
                   colorScheme="green" 
                   size="lg" 
                   borderRadius="full"
@@ -617,14 +643,14 @@ export default function ExecutiveDashboard({ user }: ExecutiveDashboardProps) {
                 <Flex justify="space-between" mb={3}>
                   <HStack spacing={2}>
                     <FiFileText color="blue.500" />
-                    <Text fontSize="sm" fontWeight="medium">Completarea Rapoartelor</Text>
+                    <Text fontSize="sm" fontWeight="medium">Finalizarea Evenimentelor</Text>
                   </HStack>
                   <Text fontSize="sm" color="gray.500" fontWeight="semibold">
-                    {KPIService.formatPercentage(kpis.performance.reportCompletionRate)}
+                    {KPIService.formatPercentage(kpis.events.completionRate)}
                   </Text>
                 </Flex>
                 <Progress 
-                  value={kpis.performance.reportCompletionRate} 
+                  value={kpis.events.completionRate} 
                   colorScheme="blue" 
                   size="lg" 
                   borderRadius="full"
@@ -637,15 +663,15 @@ export default function ExecutiveDashboard({ user }: ExecutiveDashboardProps) {
               <Box>
                 <Flex justify="space-between" mb={3}>
                   <HStack spacing={2}>
-                    <FiStar color="purple.500" />
-                    <Text fontSize="sm" fontWeight="medium">Satisfacția Utilizatorilor</Text>
+                    <FiClock color="purple.500" />
+                    <Text fontSize="sm" fontWeight="medium">Timp mediu planificare</Text>
                   </HStack>
                   <Text fontSize="sm" color="gray.500" fontWeight="semibold">
-                    {kpis.performance.userSatisfaction}/10
+                    {KPIService.formatTime(kpis.events.avgResponseTimeHours)}
                   </Text>
                 </Flex>
                 <Progress 
-                  value={kpis.performance.userSatisfaction * 10} 
+                  value={Math.min(kpis.events.avgResponseTimeHours, 72) / 72 * 100} 
                   colorScheme="purple" 
                   size="lg" 
                   borderRadius="full"
@@ -657,6 +683,72 @@ export default function ExecutiveDashboard({ user }: ExecutiveDashboardProps) {
             </VStack>
           </CardBody>
         </Card>
+      </Fade>
+
+      <Fade in={true} delay={1.1}>
+        <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6} mt={8}>
+          <Card bg={cardBg} border="1px solid" borderColor={borderColor} borderRadius="2xl">
+            <CardHeader pb={2}>
+              <Heading size="md">Evenimente pe tip</Heading>
+            </CardHeader>
+            <CardBody pt={0}>
+              <TableContainer>
+                <Table size="sm" variant="simple">
+                  <Thead>
+                    <Tr>
+                      <Th>Tip</Th>
+                      <Th isNumeric>Nr.</Th>
+                      <Th isNumeric>Finalizare</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {kpis.eventTypes.length === 0 ? (
+                      <Tr><Td colSpan={3} color="gray.500">Nicio activitate în perioada selectată</Td></Tr>
+                    ) : kpis.eventTypes.map((item) => (
+                      <Tr key={item.eventType}>
+                        <Td>{EVENT_TYPE_LABELS[item.eventType] || item.eventType}</Td>
+                        <Td isNumeric>{item.count}</Td>
+                        <Td isNumeric>{KPIService.formatPercentage(item.completionRate)}</Td>
+                      </Tr>
+                    ))}
+                  </Tbody>
+                </Table>
+              </TableContainer>
+            </CardBody>
+          </Card>
+
+          <Card bg={cardBg} border="1px solid" borderColor={borderColor} borderRadius="2xl">
+            <CardHeader pb={2}>
+              <Heading size="md">Activitate pe departamente</Heading>
+            </CardHeader>
+            <CardBody pt={0}>
+              <TableContainer>
+                <Table size="sm" variant="simple">
+                  <Thead>
+                    <Tr>
+                      <Th>Departament</Th>
+                      <Th isNumeric>Evenimente</Th>
+                      <Th isNumeric>Task-uri</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {kpis.departments.filter((d) => d.eventsCount > 0 || d.tasksCount > 0).length === 0 ? (
+                      <Tr><Td colSpan={3} color="gray.500">Nicio activitate pe departamente în perioada selectată</Td></Tr>
+                    ) : kpis.departments
+                      .filter((d) => d.eventsCount > 0 || d.tasksCount > 0)
+                      .map((dept) => (
+                        <Tr key={dept.departmentId}>
+                          <Td>{dept.departmentName}</Td>
+                          <Td isNumeric>{dept.eventsCount}</Td>
+                          <Td isNumeric>{dept.tasksCount}</Td>
+                        </Tr>
+                      ))}
+                  </Tbody>
+                </Table>
+              </TableContainer>
+            </CardBody>
+          </Card>
+        </SimpleGrid>
       </Fade>
     </Box>
   );

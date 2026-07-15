@@ -267,6 +267,32 @@ export const SupplyController = {
                     p.expiry_months, p.storage_conditions, p.is_active, p.created_at, p.updated_at,
                     pc.name as category_name,
                     COALESCE(SUM(i.quantity), 0) as current_stock,
+                    COALESCE((
+                        SELECT SUM(COALESCE(mr.quantity_approved, mr.quantity_requested))
+                        FROM material_requests mr
+                        JOIN supply_events se ON se.request_id = mr.id
+                        JOIN calendar_events ce ON ce.id = se.event_id
+                        WHERE mr.product_id = p.id
+                          AND mr.status = 'APPROVED'
+                          AND ce.status != 'COMPLETED'
+                          AND NOT (
+                            COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ce.metadata, '$.stockUpdated')), '') IN ('true', '1')
+                            OR COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ce.metadata, '$.deliveryStatus')), '') IN ('DELIVERED', 'COMPLETED')
+                          )
+                    ), 0) as pending_delivery,
+                    COALESCE((
+                        SELECT MIN(ce.start_time)
+                        FROM material_requests mr
+                        JOIN supply_events se ON se.request_id = mr.id
+                        JOIN calendar_events ce ON ce.id = se.event_id
+                        WHERE mr.product_id = p.id
+                          AND mr.status = 'APPROVED'
+                          AND ce.status != 'COMPLETED'
+                          AND NOT (
+                            COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ce.metadata, '$.stockUpdated')), '') IN ('true', '1')
+                            OR COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ce.metadata, '$.deliveryStatus')), '') IN ('DELIVERED', 'COMPLETED')
+                          )
+                    ), NULL) as next_delivery_date,
                     CASE 
                         WHEN COALESCE(SUM(i.quantity), 0) = 0 THEN 'EMPTY'
                         WHEN COALESCE(SUM(i.quantity), 0) <= p.reorder_point THEN 'LOW'
@@ -579,7 +605,7 @@ export const SupplyController = {
                         return {
                             id: parseInt(id),
                             location: location,
-                            quantity: parseInt(quantity),
+                            quantity: parseFloat(quantity),
                             unitCost: parseFloat(unitCost),
                             batchNumber: batchNumber || null,
                             expiryDate: expiryDate || null,
@@ -838,43 +864,86 @@ export const SupplyController = {
         console.log('🔥 BODY:', req.body);
         
         try {
-            console.log('🔍 STEP 1: Extracting data from request');
             const { inventoryId } = req.params;
-            const { type, quantity, unitCost, referenceDocument, reason, performedBy, supplierId, departmentId, notes, movementDate } = req.body;
+            const { type, quantity, unitCost, referenceDocument, reason, performedBy, supplierId, departmentId, notes, movementDate, location } = req.body;
             
-            console.log('🔍 STEP 2: Basic validation');
             if (!type || !quantity || quantity <= 0) {
-                console.log('❌ Validation error: type or quantity');
                 return res.status(400).json({ message: 'Tipul și cantitatea (pozitivă) sunt obligatorii' });
             }
 
             if (!movementDate) {
-                console.log('❌ Validation error: movementDate');
                 return res.status(400).json({ message: 'Data mișcării este obligatorie' });
             }
 
-            console.log('🔍 STEP 3: Getting current inventory');
-            // Get current inventory with product details
-            const [inventoryRows] = await pool.execute<RowDataPacket[]>(
-                `SELECT i.*, p.name as product_name, p.code as product_code, p.unit as product_unit,
-                        p.min_stock, p.max_stock, p.reorder_point, p.unit_price as product_unit_price
-                 FROM inventory i 
-                 JOIN products p ON i.product_id = p.id 
-                 WHERE i.id = ?`,
-                [inventoryId]
-            );
-            
-            if (inventoryRows.length === 0) {
-                console.log('❌ Inventory not found');
+            const fetchInventoryById = async (id: number) => {
+                const [rows] = await pool.execute<RowDataPacket[]>(
+                    `SELECT i.*, p.name as product_name, p.code as product_code, p.unit as product_unit,
+                            p.min_stock, p.max_stock, p.reorder_point, p.unit_price as product_unit_price
+                     FROM inventory i 
+                     JOIN products p ON i.product_id = p.id 
+                     WHERE i.id = ?`,
+                    [id]
+                );
+                return rows.length > 0 ? rows[0] : null;
+            };
+
+            let inventory = await fetchInventoryById(Number(inventoryId));
+
+            // Fallback: grouped inventory views may send product_id instead of inventory row id
+            if (!inventory) {
+                const [productRows] = await pool.execute<RowDataPacket[]>(
+                    `SELECT i.*, p.name as product_name, p.code as product_code, p.unit as product_unit,
+                            p.min_stock, p.max_stock, p.reorder_point, p.unit_price as product_unit_price
+                     FROM inventory i
+                     JOIN products p ON i.product_id = p.id
+                     WHERE i.product_id = ?
+                     ORDER BY i.last_updated DESC
+                     LIMIT 1`,
+                    [Number(inventoryId)]
+                );
+                inventory = productRows.length > 0 ? productRows[0] : null;
+            }
+
+            if (!inventory) {
                 return res.status(404).json({ message: 'Stocul nu a fost găsit' });
             }
-            
-            const inventory = inventoryRows[0];
-            console.log('✅ Found inventory:', inventory);
 
-            console.log('🔍 STEP 4: Calculating new quantities and costs');
-            let newQuantity = inventory.quantity;
-            let actualQuantity = quantity;
+            let targetInventoryId = inventory.id;
+
+            if (location && location !== inventory.location) {
+                const [locationRows] = await pool.execute<RowDataPacket[]>(
+                    `SELECT i.*, p.name as product_name, p.code as product_code, p.unit as product_unit,
+                            p.min_stock, p.max_stock, p.reorder_point, p.unit_price as product_unit_price
+                     FROM inventory i
+                     JOIN products p ON i.product_id = p.id
+                     WHERE i.product_id = ? AND i.location = ?
+                     LIMIT 1`,
+                    [inventory.product_id, location]
+                );
+
+                if (locationRows.length > 0) {
+                    inventory = locationRows[0];
+                    targetInventoryId = inventory.id;
+                } else if (type.toUpperCase() === 'IN') {
+                    const initialUnitCost = Number(unitCost) || Number(inventory.unit_cost) || Number(inventory.product_unit_price) || 0;
+                    const [insertResult] = await pool.execute<ResultSetHeader>(
+                        'INSERT INTO inventory (product_id, quantity, location, unit_cost, last_updated) VALUES (?, 0, ?, ?, NOW())',
+                        [inventory.product_id, location, initialUnitCost]
+                    );
+                    targetInventoryId = insertResult.insertId;
+                    inventory = await fetchInventoryById(targetInventoryId);
+                    if (!inventory) {
+                        return res.status(500).json({ message: 'Nu s-a putut crea stocul pentru locația selectată' });
+                    }
+                } else {
+                    return res.status(400).json({
+                        message: `Nu există stoc pentru acest produs la ${location}`
+                    });
+                }
+            }
+
+            let newQuantity = Number(inventory.quantity);
+            let actualQuantity = Number(quantity);
             let newUnitCost = Number(inventory.unit_cost) || 0;
             
             switch (type.toUpperCase()) {
@@ -961,17 +1030,13 @@ export const SupplyController = {
                     inventory_id, type, quantity, unit_cost, reference_document, reason, 
                     performed_by, supplier_id, department_id, notes, movement_date
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [inventoryId, type.toUpperCase(), actualQuantity, Number(unitCost) || Number(inventory.unit_cost) || 0, referenceDocument || null, 
+                [targetInventoryId, type.toUpperCase(), actualQuantity, Number(unitCost) || Number(inventory.unit_cost) || 0, referenceDocument || null, 
                  reason, performedBy, supplierId || null, departmentId || null, notes || null, movementDate]
             );
 
-            console.log('✅ STEP 6: Stock movement created with ID:', result.insertId);
-
-            console.log('🔍 STEP 7: Updating inventory');
-            // Update inventory quantity and cost
             await pool.execute(
                 'UPDATE inventory SET quantity = ?, unit_cost = ?, last_updated = CURRENT_TIMESTAMP WHERE id = ?',
-                [newQuantity, newUnitCost, inventoryId]
+                [newQuantity, newUnitCost, targetInventoryId]
             );
 
             console.log('✅ STEP 8: Inventory updated successfully');

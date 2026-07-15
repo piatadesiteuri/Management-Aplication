@@ -78,8 +78,9 @@ export class KPIService {
    * Calculează toate KPI-urile DSPD
    */
   async calculateAllKPIs(period?: { startDate: string; endDate: string }): Promise<DSPDKPI> {
-    const startDate = period?.startDate || '2023-01-01';
-    const endDate = period?.endDate || '2025-12-31';
+    const now = new Date();
+    const startDate = period?.startDate || `${now.getFullYear()}-01-01`;
+    const endDate = period?.endDate || now.toISOString().split('T')[0];
 
     const [
       epidemiologicalMetrics,
@@ -343,7 +344,7 @@ export class KPIService {
         taskCompletionRate: taskData.total > 0 ? (taskData.completed / taskData.total) * 100 : 0,
         reportCompletionRate: reportData.total > 0 ? (reportData.completed / reportData.total) * 100 : 0,
         averageApprovalTime: Math.round(avgApprovalTime),
-        userSatisfaction: 8.5 // Placeholder - ar trebui implementat un sistem de feedback
+        userSatisfaction: 0
       };
     } catch (error) {
       console.error('Error calculating performance KPIs:', error);
@@ -351,7 +352,7 @@ export class KPIService {
         taskCompletionRate: 0,
         reportCompletionRate: 0,
         averageApprovalTime: 0,
-        userSatisfaction: 8.5
+        userSatisfaction: 0
       };
     }
   }
@@ -392,7 +393,7 @@ export class KPIService {
         tasksCount: row.tasks_count || 0,
         completionRate: row.events_count > 0 ? 
           ((row.completed_events || 0) / row.events_count) * 100 : 0,
-        costPerDepartment: (row.fuel_cost || 0) + (row.maintenance_cost || 0)
+        costPerDepartment: Number(row.fuel_cost || 0) + Number(row.maintenance_cost || 0)
       }));
     } catch (error) {
       console.error('Error calculating department KPIs:', error);
@@ -469,6 +470,97 @@ export class KPIService {
       totalFuelConsumption: fuelData.total_fuel_consumption || 0,
       averageEfficiency: Math.round((fuelData.avg_efficiency || 0) * 100) / 100,
       maintenanceCosts: maintenanceData.maintenance_costs || 0
+    };
+  }
+
+  /**
+   * KPI-uri pentru dashboard executive (date reale din sistem)
+   */
+  async calculateDashboardKPIs(period?: { startDate: string; endDate: string }) {
+    const now = new Date();
+    const startDate = period?.startDate || `${now.getFullYear()}-01-01`;
+    const endDate = period?.endDate || now.toISOString().split('T')[0];
+
+    const kpis = await this.calculateAllKPIs({ startDate, endDate });
+
+    const [eventSummaryRows] = await pool.execute(`
+      SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed,
+        SUM(CASE WHEN type = 'SUPPLY_ORDER' THEN 1 ELSE 0 END) as supply_orders,
+        SUM(CASE WHEN type = 'TRANSPORT_DELIVERY' THEN 1 ELSE 0 END) as transport_deliveries,
+        SUM(CASE WHEN type = 'INSPECTION' THEN 1 ELSE 0 END) as inspections,
+        AVG(TIMESTAMPDIFF(HOUR, created_at, start_time)) as avg_response_hours
+      FROM calendar_events
+      WHERE start_time BETWEEN ? AND ?
+    `, [startDate, endDate]);
+
+    const [taskSummaryRows] = await pool.execute(`
+      SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed
+      FROM tasks
+      WHERE created_at BETWEEN ? AND ?
+    `, [startDate, endDate]);
+
+    const [costRows] = await pool.execute(`
+      SELECT
+        COALESCE(SUM(vfr.cost), 0) as fuel_cost
+      FROM vehicle_fuel_records vfr
+      WHERE vfr.date BETWEEN ? AND ?
+    `, [startDate, endDate]);
+
+    const [maintenanceRows] = await pool.execute(`
+      SELECT COALESCE(SUM(cost), 0) as maintenance_cost
+      FROM vehicle_maintenance
+      WHERE date BETWEEN ? AND ?
+    `, [startDate, endDate]);
+
+    const eventSummary = (eventSummaryRows as any[])[0] || {};
+    const taskSummary = (taskSummaryRows as any[])[0] || {};
+    const fuelCost = Number((costRows as any[])[0]?.fuel_cost || 0);
+    const maintenanceCost = Number((maintenanceRows as any[])[0]?.maintenance_cost || 0);
+
+    const totalEvents = Number(eventSummary.total || 0);
+    const completedEvents = Number(eventSummary.completed || 0);
+    const totalTasks = Number(taskSummary.total || 0);
+    const completedTasks = Number(taskSummary.completed || 0);
+
+    return {
+      period: { startDate, endDate },
+      events: {
+        total: totalEvents,
+        completed: completedEvents,
+        completionRate: totalEvents > 0 ? (completedEvents / totalEvents) * 100 : 0,
+        avgResponseTimeHours: Math.round(Number(eventSummary.avg_response_hours || 0)),
+        supplyOrders: Number(eventSummary.supply_orders || 0),
+        transportDeliveries: Number(eventSummary.transport_deliveries || 0),
+        inspections: Number(eventSummary.inspections || 0),
+      },
+      tasks: {
+        total: totalTasks,
+        completed: completedTasks,
+        completionRate: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0,
+      },
+      vehicles: {
+        total: kpis.vehicleMetrics.totalVehicles,
+        active: kpis.vehicleMetrics.activeVehicles,
+        utilizationRate: kpis.operationalMetrics.resourceUtilization,
+        fuelCostPerKm: kpis.operationalMetrics.vehicleEfficiency,
+        totalDistance: kpis.vehicleMetrics.totalDistance,
+      },
+      costs: {
+        operationalTotal: fuelCost + maintenanceCost,
+        fuel: fuelCost,
+        maintenance: maintenanceCost,
+      },
+      departments: kpis.departmentMetrics,
+      eventTypes: kpis.eventTypeMetrics,
+      inspection: {
+        totalInspections: kpis.inspectionMetrics.totalInspections,
+        complianceRate: kpis.inspectionMetrics.complianceRate,
+        sanctionsApplied: kpis.inspectionMetrics.sanctionsApplied,
+      },
     };
   }
 

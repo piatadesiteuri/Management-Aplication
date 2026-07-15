@@ -52,6 +52,7 @@ import {
   FiTrendingUp,
   FiAlertTriangle,
   FiCheck,
+  FiTruck,
 } from 'react-icons/fi';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
@@ -105,6 +106,9 @@ export default function ProductList() {
   const textColor = useColorModeValue('gray.600', 'gray.400');
   const hoverBg = useColorModeValue('gray.50', 'gray.700');
   const cardBg = useColorModeValue('gray.50', 'gray.700');
+  const pendingBadgeBg = useColorModeValue('orange.100', 'orange.700');
+  const pendingBadgeColor = useColorModeValue('orange.800', 'white');
+  const pendingTextColor = useColorModeValue('orange.700', 'orange.200');
 
   useEffect(() => {
     loadProducts();
@@ -449,9 +453,22 @@ export default function ProductList() {
                       </Td>
                       <Td>
                         <VStack align="start" spacing={1}>
-                          <Text fontWeight="semibold">
-                            {product.current_stock || 0} {product.unit}
-                          </Text>
+                          <HStack>
+                            <Text fontWeight="semibold">
+                              {product.current_stock || 0} {product.unit}
+                            </Text>
+                            {Number(product.pending_delivery) > 0 && (
+                              <Badge bg={pendingBadgeBg} color={pendingBadgeColor} display="flex" alignItems="center" gap={1} px={2}>
+                                <Icon as={FiTruck} boxSize={3} />
+                                +{product.pending_delivery} în curs
+                              </Badge>
+                            )}
+                          </HStack>
+                          {Number(product.pending_delivery) > 0 && product.next_delivery_date && (
+                            <Text fontSize="xs" color={pendingTextColor}>
+                              Livrare estimată: {new Date(product.next_delivery_date).toLocaleDateString('ro-RO')}
+                            </Text>
+                          )}
                           <Progress
                             value={stockPercentage}
                             size="sm"

@@ -295,14 +295,23 @@ export class RuleEngineService {
       if ((alertRows as any[]).length === 0) return;
       
       const alert = (alertRows as any[])[0];
-      
+      const eventId = alert.entity_type === 'EVENT' ? alert.entity_id : null;
+      const notificationPayload = JSON.stringify({
+        alert_id: alertId,
+        entity_type: alert.entity_type,
+        entity_id: alert.entity_id,
+        event_id: eventId,
+      });
+
       // Creează notificarea în sistemul de notificări
       const [notificationResult] = await pool.execute(
-        `INSERT INTO notifications (user_id, message, type, status, created_at) 
-         VALUES (?, ?, 'alert', 'unread', NOW())`,
+        `INSERT INTO notifications (user_id, message, type, status, event_id, data, created_at) 
+         VALUES (?, ?, 'alert', 'unread', ?, ?, NOW())`,
         [
-          alert.user_id || 1, // Default la user 1 dacă nu e specificat
-          `🚨 ALERTĂ: ${alert.title} - ${alert.message}`
+          alert.user_id || 1,
+          `🚨 ALERTĂ: ${alert.title} - ${alert.message}`,
+          eventId,
+          notificationPayload,
         ]
       );
       

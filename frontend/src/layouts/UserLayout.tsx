@@ -54,9 +54,11 @@ import {
 } from 'react-icons/fi';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { fetchNotifications, markAllAsRead, markAsRead, connectNotificationsWS, Notification } from '../services/NotificationsService';
+import { fetchNotifications, fetchInternalNotesInboxCount, markAllAsRead, markAsRead, connectNotificationsWS, Notification } from '../services/NotificationsService';
 import { ActivityLog, ActivityLogService } from '../services/ActivityLogService';
 import { StockService } from '../services/StockService';
+import { NavIconBadge } from '../components/common/NavIconBadge';
+import { resolveNotificationPath, resolveNotificationEventId } from '../utils/notificationNavigation';
 
 interface UserLayoutProps {
   children: React.ReactNode;
@@ -76,6 +78,7 @@ export default function UserLayout({ children }: UserLayoutProps) {
   const location = useLocation();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [newNotesCount, setNewNotesCount] = useState(0);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
@@ -144,10 +147,27 @@ export default function UserLayout({ children }: UserLayoutProps) {
     !item.requiredPermissions || item.requiredPermissions.some((permission) => hasPermission(permission))
   );
 
+  const displayedNavItems = navItems.map((item) =>
+    item.name === 'Note interne' && newNotesCount > 0
+      ? { ...item, badge: String(newNotesCount > 9 ? '9+' : newNotesCount) }
+      : item
+  );
+
   // Fetch inițial + WebSocket
   useEffect(() => {
     if (!user?.id) return;
+
+    const refreshInboxCount = () => {
+      if (!hasPermission('tasks.view')) return;
+      fetchInternalNotesInboxCount().then(setNewNotesCount);
+    };
+
     fetchNotifications().then(setNotifications);
+    refreshInboxCount();
+
+    const handleInboxUpdate = () => refreshInboxCount();
+    window.addEventListener('internalNoteUpdate', handleInboxUpdate);
+
     wsRef.current = connectNotificationsWS(Number(user.id), (notif) => {
       // Validare completă pentru notificare
       if (!notif || typeof notif !== 'object') {
@@ -181,11 +201,16 @@ export default function UserLayout({ children }: UserLayoutProps) {
           priority: notif.priority,
           reason: notif.reason,
           request_id: notif.request_id
-        })
+        }),
+        ...(notif.type === 'INTERNAL_NOTE' && { task_id: notif.task_id }),
       };
       
       // Adaugă la UserLayout
       setNotifications((prev) => [newNotification, ...prev]);
+
+      if (notif.type === 'INTERNAL_NOTE') {
+        window.dispatchEvent(new CustomEvent('internalNoteUpdate'));
+      }
       
       // Trimite către NotificationsPage
       window.dispatchEvent(new CustomEvent('notificationUpdate', {
@@ -193,6 +218,7 @@ export default function UserLayout({ children }: UserLayoutProps) {
       }));
     });
     return () => {
+      window.removeEventListener('internalNoteUpdate', handleInboxUpdate);
       const socket = wsRef.current;
       wsRef.current = null;
       if (!socket) return;
@@ -207,6 +233,12 @@ export default function UserLayout({ children }: UserLayoutProps) {
       }
     };
   }, [user?.id]);
+
+  useEffect(() => {
+    if (location.pathname.endsWith('/tasks')) {
+      fetchInternalNotesInboxCount().then(setNewNotesCount);
+    }
+  }, [location.pathname]);
 
   // Sincronizare cu NotificationsPage
   useEffect(() => {
@@ -232,7 +264,10 @@ export default function UserLayout({ children }: UserLayoutProps) {
   // Încarcă logurile de activitate când se deschide modalul
   useEffect(() => {
     if (isModalOpen && selectedNotification) {
-      // Încarcă doar modificarea specifică pentru această notificare
+      if (selectedNotification.type === 'MATERIAL_REQUEST' || selectedNotification.type === 'MATERIAL_REQUEST_UPDATE') {
+        setActivityLogs([]);
+        return;
+      }
       loadSpecificNotificationLogs(selectedNotification);
     }
   }, [isModalOpen, selectedNotification]);
@@ -308,7 +343,27 @@ export default function UserLayout({ children }: UserLayoutProps) {
     }
   };
 
-  const handleNotificationClick = (notification: Notification) => {
+  const handleNotificationClick = async (notification: Notification) => {
+    if (notification.type === 'INTERNAL_NOTE') {
+      if (notification.status === 'unread') {
+        handleMarkAsRead(notification.id);
+      }
+      setDropdownOpen(false);
+      const taskId = notification.task_id;
+      navigate(taskId ? `/user/tasks?note=${taskId}` : '/user/tasks');
+      return;
+    }
+
+    if (notification.type === 'MATERIAL_REQUEST' || notification.type === 'MATERIAL_REQUEST_UPDATE') {
+      if (notification.status === 'unread') {
+        handleMarkAsRead(notification.id);
+      }
+      setDropdownOpen(false);
+      const path = await resolveNotificationPath(notification, user?.roles || []);
+      navigate(path);
+      return;
+    }
+
     setSelectedNotification(notification);
     onModalOpen();
     // Marchează ca citită automat când se deschide modalul
@@ -382,32 +437,23 @@ export default function UserLayout({ children }: UserLayoutProps) {
     }
   };
 
-  const handleViewEvent = () => {
-    if (selectedNotification) {
-      // Marchează notificarea ca citită
-      if (selectedNotification.status === 'unread') {
-        handleMarkAsRead(selectedNotification.id);
-      }
-      
-      // Pentru notificările de cereri de materiale, navighează la pagina de cereri
-      if (selectedNotification.type === 'MATERIAL_REQUEST') {
-        navigate('/user/material-requests');
-      } else {
-        // Pentru alte tipuri de notificări, navighează la calendar
-        const eventId = (selectedNotification as any).event_id;
-        
-        if (eventId) {
-          // Navighează către calendar cu parametrul event
-          navigate(`/user/calendar?event=${eventId}`);
-        } else {
-          console.warn('No event_id found in notification:', selectedNotification);
-          // Navighează la calendar fără parametru
-          navigate('/user/calendar');
-        }
-      }
-      
+  const handleViewEvent = async () => {
+    if (!selectedNotification) {
       onModalClose();
+      return;
     }
+
+    if (selectedNotification.status === 'unread') {
+      handleMarkAsRead(selectedNotification.id);
+    }
+
+    const eventId = await resolveNotificationEventId(selectedNotification);
+    const path = await resolveNotificationPath(selectedNotification, user?.roles || []);
+    navigate(path);
+    if (eventId) {
+      window.dispatchEvent(new CustomEvent('openCalendarEvent', { detail: { eventId } }));
+    }
+    onModalClose();
   };
 
   const handleLogout = () => {
@@ -431,14 +477,18 @@ export default function UserLayout({ children }: UserLayoutProps) {
 
       {/* Navigation */}
       <VStack spacing={2} align="stretch" flex={1} p={4}>
-        {navItems.map((item) => {
+        {displayedNavItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
             <Button
               key={item.name}
               variant={isActive ? 'solid' : 'ghost'}
               colorScheme={isActive ? 'teal' : undefined}
-              leftIcon={<Icon as={item.icon} boxSize={4} />}
+              leftIcon={
+                <NavIconBadge count={item.badge}>
+                  <Icon as={item.icon} boxSize={4} />
+                </NavIconBadge>
+              }
               justifyContent="start"
               h="48px"
               onClick={() => navigate(item.path)}
@@ -453,14 +503,7 @@ export default function UserLayout({ children }: UserLayoutProps) {
               transition="all 0.2s ease"
               fontWeight={isActive ? 'semibold' : 'medium'}
             >
-              <HStack justify="space-between" w="full">
-                <Text fontSize="sm">{item.name}</Text>
-                {item.badge && (
-                  <Badge colorScheme="red" variant="solid" size="sm" borderRadius="full">
-                    {item.badge}
-                  </Badge>
-                )}
-              </HStack>
+              <Text fontSize="sm">{item.name}</Text>
             </Button>
           );
         })}
@@ -561,26 +604,35 @@ export default function UserLayout({ children }: UserLayoutProps) {
                     ) : (
                       notifications.map((notif) => {
                         const isAlert = notif.type === 'alert';
+                        const isInternalNote = notif.type === 'INTERNAL_NOTE';
                         const isUnread = notif.status === 'unread';
                         
                         // Stiluri diferite pentru alerte vs notificări normale
                         const bgColor = isAlert 
                           ? (isUnread ? orange50 : gray50)
+                          : isInternalNote
+                            ? (isUnread ? 'blue.50' : gray50)
                           : (isUnread ? green50 : gray50);
                         
                         const borderColor = isAlert 
                           ? (isUnread ? orange300 : gray200)
+                          : isInternalNote
+                            ? (isUnread ? 'blue.300' : gray200)
                           : (isUnread ? green200 : gray200);
                         
                         const textColor = isAlert 
                           ? (isUnread ? orange800 : gray700)
+                          : isInternalNote
+                            ? (isUnread ? 'blue.800' : gray700)
                           : (isUnread ? green800 : gray700);
                         
                         const hoverBg = isAlert 
                           ? (isUnread ? orange100 : gray100)
+                          : isInternalNote
+                            ? (isUnread ? 'blue.100' : gray100)
                           : (isUnread ? green100 : gray100);
                         
-                        const dotColor = isAlert ? 'orange.500' : 'green.500';
+                        const dotColor = isAlert ? 'orange.500' : isInternalNote ? 'blue.500' : 'green.500';
                         
                         return (
                           <Box 
@@ -706,14 +758,18 @@ export default function UserLayout({ children }: UserLayoutProps) {
 
           <Box mt={4} display={{ base: 'none', lg: 'block' }}>
             <HStack spacing={2} overflowX="auto" pb={1}>
-              {navItems.map((item) => {
+              {displayedNavItems.map((item) => {
                 const isActive = location.pathname === item.path;
                 return (
                   <Button
                     key={item.name}
                     variant={isActive ? 'solid' : 'ghost'}
                     colorScheme={isActive ? 'teal' : undefined}
-                    leftIcon={<Icon as={item.icon} boxSize={4} />}
+                    leftIcon={
+                      <NavIconBadge count={item.badge}>
+                        <Icon as={item.icon} boxSize={4} />
+                      </NavIconBadge>
+                    }
                     borderRadius="full"
                     onClick={() => navigate(item.path)}
                     whiteSpace="nowrap"
@@ -825,6 +881,16 @@ export default function UserLayout({ children }: UserLayoutProps) {
                   </VStack>
                 </Box>
                 
+                {selectedNotification.type === 'MATERIAL_REQUEST_UPDATE' && (
+                  <Box p={5} bg={useColorModeValue('green.50', 'whiteAlpha.100')} borderRadius="xl" border="1px solid" borderColor={useColorModeValue('green.200', 'whiteAlpha.200')}>
+                    <Text fontWeight="semibold" mb={2}>Cererea ta a fost procesată</Text>
+                    <Text color={gray700}>{selectedNotification.message}</Text>
+                    <Text fontSize="sm" color={mutedTextColor} mt={3}>
+                      Poți deschide livrarea planificată pentru a confirma primirea produselor când sosesc.
+                    </Text>
+                  </Box>
+                )}
+
                 {/* Material Request Details Section - With API Data */}
                 {selectedNotification.type === 'MATERIAL_REQUEST' && (
                   <Box>
@@ -969,7 +1035,7 @@ export default function UserLayout({ children }: UserLayoutProps) {
                 )}
 
                 {/* Activity Logs Section - Only for non-MATERIAL_REQUEST notifications */}
-                {selectedNotification.type !== 'MATERIAL_REQUEST' && (
+                {selectedNotification.type !== 'MATERIAL_REQUEST' && selectedNotification.type !== 'MATERIAL_REQUEST_UPDATE' && (
                   <Box>
                     <Divider my={6} borderColor={gray200} />
                     <VStack align="stretch" spacing={4}>
@@ -1041,14 +1107,14 @@ export default function UserLayout({ children }: UserLayoutProps) {
                             <VStack align="stretch" spacing={3}>
                               <HStack>
                                 <Icon as={FiUser} boxSize={4} color="gray.500" />
-                                <Text fontSize="md" color="gray.700">
+                                <Text fontSize="md" color={gray700}>
                                   <strong>Modificat de:</strong> {log.first_name} {log.last_name}
                                 </Text>
                               </HStack>
                               
                               <HStack align="start">
-                                <Icon as={FiFileText} boxSize={4} color="gray.500" mt={1} />
-                                <Text fontSize="md" color="gray.700">
+                                <Icon as={FiFileText} boxSize={4} color={gray500} mt={1} />
+                                <Text fontSize="md" color={gray700}>
                                   <strong>Descriere:</strong> {log.description}
                                 </Text>
                               </HStack>
@@ -1075,16 +1141,7 @@ export default function UserLayout({ children }: UserLayoutProps) {
                                 });
                                 
                                 if (!hasAny) {
-                                  return (
-                                    <Box mt={4} p={4} bg={gray50} borderRadius="md">
-                                      <Text fontSize="sm" color={gray600}>
-                                        Nu sunt detalii de produse înregistrate pentru această notificare.
-                                      </Text>
-                                      <Text fontSize="xs" color={gray500} mt={2}>
-                                        Debug: {JSON.stringify(productChanges)}
-                                      </Text>
-                                    </Box>
-                                  );
+                                  return null;
                                 }
 
                                 const Section = ({ title, color, items }: { title: string; color: string; items: any[] }) => (
@@ -1200,6 +1257,8 @@ export default function UserLayout({ children }: UserLayoutProps) {
                 >
                   {selectedNotification.type === 'MATERIAL_REQUEST' 
                     ? 'Vezi Cererile de Materiale'
+                    : selectedNotification.type === 'MATERIAL_REQUEST_UPDATE'
+                      ? 'Deschide Livrarea'
                     : 'Deschide Evenimentul'
                   }
               </Button>

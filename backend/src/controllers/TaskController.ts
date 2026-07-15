@@ -190,6 +190,19 @@ export const TaskController = {
     }
   },
 
+  // Număr note interne nefinalizate primite
+  getInboxCount: async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const taskService = TaskService.getInstance();
+      const count = await taskService.getInboxCount(userId);
+      res.json({ count });
+    } catch (error) {
+      console.error('Error getting inbox count:', error);
+      res.status(500).json({ message: 'Eroare la numărarea notelor primite' });
+    }
+  },
+
   // Obține statisticile task-urilor
   getTaskStats: async (req: Request, res: Response) => {
     try {

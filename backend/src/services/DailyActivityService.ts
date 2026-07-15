@@ -336,7 +336,57 @@ export class DailyActivityService {
         }
     }
 
-    // Finalizează fișa activității zilnice
+    // Finalizează toate înregistrările din luna selectată pentru un vehicul
+    static async finalizeMonthlyActivity(
+        year: number,
+        month: string,
+        vehicleId: number,
+        userId: number
+    ): Promise<void> {
+        try {
+            const paddedMonth = month.padStart(2, '0');
+            const startDate = `${year}-${paddedMonth}-01`;
+            const lastDay = new Date(year, parseInt(paddedMonth, 10), 0).getDate();
+            const endDate = `${year}-${paddedMonth}-${String(lastDay).padStart(2, '0')}`;
+
+            await pool.execute(
+                `UPDATE daily_activity_sheet
+                 SET status = 'COMPLETED', updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                 WHERE vehicle_id = ? AND date >= ? AND date <= ?`,
+                [userId, vehicleId, startDate, endDate]
+            );
+        } catch (error) {
+            console.error('Error finalizing daily activity:', error);
+            throw error;
+        }
+    }
+
+    // Redeschide luna pentru editare (revine la DRAFT)
+    static async reopenMonthlyActivity(
+        year: number,
+        month: string,
+        vehicleId: number,
+        userId: number
+    ): Promise<void> {
+        try {
+            const paddedMonth = month.padStart(2, '0');
+            const startDate = `${year}-${paddedMonth}-01`;
+            const lastDay = new Date(year, parseInt(paddedMonth, 10), 0).getDate();
+            const endDate = `${year}-${paddedMonth}-${String(lastDay).padStart(2, '0')}`;
+
+            await pool.execute(
+                `UPDATE daily_activity_sheet
+                 SET status = 'DRAFT', updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                 WHERE vehicle_id = ? AND date >= ? AND date <= ?`,
+                [userId, vehicleId, startDate, endDate]
+            );
+        } catch (error) {
+            console.error('Error reopening daily activity:', error);
+            throw error;
+        }
+    }
+
+    // @deprecated — păstrat pentru compatibilitate
     static async finalizeDailyActivity(date: string, userId: number): Promise<void> {
         try {
             await pool.execute(

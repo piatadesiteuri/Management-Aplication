@@ -39,7 +39,7 @@ import {
     FormLabel,
     Select
 } from '@chakra-ui/react';
-import { FiSave, FiCheck, FiCalendar, FiPlus, FiTrash2, FiMove, FiDownload } from 'react-icons/fi';
+import { FiSave, FiCheck, FiCalendar, FiPlus, FiTrash2, FiMove, FiDownload, FiEdit2 } from 'react-icons/fi';
 import { DailyActivityService } from '../../services/DailyActivityService';
 import { VehicleService } from '../../services/vehicles/VehicleService';
 import { FuelConsumptionService } from '../../services/FuelConsumptionService';
@@ -553,6 +553,7 @@ export default function DailyActivityModal({ isOpen, onClose }: DailyActivityMod
 
     const saveData = async () => {
         setSaving(true);
+        const wasFinalized = isFinalized;
         try {
             // Salvează doar rândurile modificate sau noi
             console.log('🔍 Debug saveData:', {
@@ -653,7 +654,7 @@ export default function DailyActivityModal({ isOpen, onClose }: DailyActivityMod
                     standard_consumption_urban: row.standard_consumption_urban,
                     standard_consumption_extraurban: row.standard_consumption_extraurban,
                     price_per_liter: row.price_per_liter,
-                    status: row.status,
+                    status: isFinalized ? 'DRAFT' : (row.status || 'DRAFT'),
                     notes: row.notes
                 };
                 
@@ -668,6 +669,14 @@ export default function DailyActivityModal({ isOpen, onClose }: DailyActivityMod
             });
 
             const savedResults = await Promise.all(promises);
+
+            if (wasFinalized && selectedVehicle) {
+                await DailyActivityService.reopenDailyActivity(
+                    selectedYear,
+                    selectedMonth,
+                    parseInt(selectedVehicle)
+                );
+            }
             
             // Actualizează rândurile cu ID-urile primite de la backend
             setActivityRows(prev => prev.map((row, index) => {
@@ -693,6 +702,11 @@ export default function DailyActivityModal({ isOpen, onClose }: DailyActivityMod
             
             // Șterge rândurile din lista de modificări după salvare
             setModifiedRows(new Set());
+
+            if (wasFinalized) {
+                setIsFinalized(false);
+                setActivityRows(prev => prev.map(row => ({ ...row, status: 'DRAFT' as const })));
+            }
             
             toast({
                 title: 'Succes',
@@ -716,17 +730,28 @@ export default function DailyActivityModal({ isOpen, onClose }: DailyActivityMod
     };
 
     const finalizeData = async () => {
+        if (!selectedVehicle) {
+            toast({
+                title: 'Selectează vehiculul',
+                status: 'warning',
+                duration: 3000,
+                isClosable: true,
+            });
+            return;
+        }
+
         setSaving(true);
         try {
             await saveData();
-            await DailyActivityService.finalizeDailyActivity(`${selectedYear}-${selectedMonth}-01`);
+            await DailyActivityService.finalizeDailyActivity(selectedYear, selectedMonth, parseInt(selectedVehicle));
+            setActivityRows(prev => prev.map(row => ({ ...row, status: 'COMPLETED' as const })));
             setIsFinalized(true);
             
             toast({
                 title: 'Succes',
-                description: 'Fișa activității a fost finalizată',
+                description: 'Luna a fost marcată ca finalizată. Poți continua să editezi sau apasă „Redeschide luna” dacă ai greșit.',
                 status: 'success',
-                duration: 3000,
+                duration: 4000,
                 isClosable: true,
             });
         } catch (error) {
@@ -734,6 +759,36 @@ export default function DailyActivityModal({ isOpen, onClose }: DailyActivityMod
             toast({
                 title: 'Eroare',
                 description: 'Nu s-a putut finaliza fișa activității',
+                status: 'error',
+                duration: 3000,
+                isClosable: true,
+            });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const reopenMonth = async () => {
+        if (!selectedVehicle) return;
+
+        setSaving(true);
+        try {
+            await DailyActivityService.reopenDailyActivity(selectedYear, selectedMonth, parseInt(selectedVehicle));
+            setActivityRows(prev => prev.map(row => ({ ...row, status: 'DRAFT' as const })));
+            setIsFinalized(false);
+
+            toast({
+                title: 'Luna redeschisă',
+                description: 'Poți modifica din nou datele din această lună.',
+                status: 'info',
+                duration: 3000,
+                isClosable: true,
+            });
+        } catch (error) {
+            console.error('Error reopening month:', error);
+            toast({
+                title: 'Eroare',
+                description: 'Nu s-a putut redeschide luna',
                 status: 'error',
                 duration: 3000,
                 isClosable: true,
@@ -887,7 +942,7 @@ export default function DailyActivityModal({ isOpen, onClose }: DailyActivityMod
                                     
                                     {isFinalized && (
                                         <Badge colorScheme="green" fontSize="sm" px={3} py={1}>
-                                            FINALIZAT
+                                            FINALIZAT — poți edita oricum
                                         </Badge>
                                     )}
                                 </HStack>
@@ -897,7 +952,7 @@ export default function DailyActivityModal({ isOpen, onClose }: DailyActivityMod
                                         <Button
                                             leftIcon={<FiPlus />}
                                             onClick={addNewRow}
-                                            disabled={isFinalized || !selectedVehicle}
+                                            disabled={!selectedVehicle}
                                             size="sm"
                                             colorScheme="blue"
                                             variant="outline"
@@ -910,24 +965,38 @@ export default function DailyActivityModal({ isOpen, onClose }: DailyActivityMod
                                             leftIcon={<FiSave />}
                                             onClick={saveData}
                                             isLoading={saving}
-                                            disabled={isFinalized}
                                             size="sm"
                                         >
                                             Salvează
                                         </Button>
                                     </Tooltip>
-                                    <Tooltip label="Finalizează fișa activității">
-                                        <Button
-                                            leftIcon={<FiCheck />}
-                                            onClick={finalizeData}
-                                            isLoading={saving}
-                                            disabled={isFinalized}
-                                            colorScheme="green"
-                                            size="sm"
-                                        >
-                                            Finalizează
-                                        </Button>
-                                    </Tooltip>
+                                    {isFinalized ? (
+                                        <Tooltip label="Redeschide luna dacă ai finalizat din greșeală">
+                                            <Button
+                                                leftIcon={<FiEdit2 />}
+                                                onClick={reopenMonth}
+                                                isLoading={saving}
+                                                colorScheme="orange"
+                                                variant="outline"
+                                                size="sm"
+                                            >
+                                                Redeschide luna
+                                            </Button>
+                                        </Tooltip>
+                                    ) : (
+                                        <Tooltip label="Marchează luna ca finalizată (poți edita oricând)">
+                                            <Button
+                                                leftIcon={<FiCheck />}
+                                                onClick={finalizeData}
+                                                isLoading={saving}
+                                                disabled={!selectedVehicle}
+                                                colorScheme="green"
+                                                size="sm"
+                                            >
+                                                Finalizează
+                                            </Button>
+                                        </Tooltip>
+                                    )}
                                     <Tooltip label="Export Excel">
                                         <Button
                                             leftIcon={<FiDownload />}
@@ -997,7 +1066,7 @@ export default function DailyActivityModal({ isOpen, onClose }: DailyActivityMod
                                                         onChange={(e) => updateRow(index, 'trip_sheet_number', e.target.value)}
                                                         size="xs"
                                                         fontSize="xs"
-                                                        isDisabled={isFinalized}
+                                                        isDisabled={false}
                                                         placeholder="Nr. foaie"
                                                         w="80px"
                                                     />
@@ -1029,7 +1098,7 @@ export default function DailyActivityModal({ isOpen, onClose }: DailyActivityMod
                                                         }}
                                                         size="xs"
                                                         fontSize="xs"
-                                                        isDisabled={isFinalized}
+                                                        isDisabled={false}
                                                         min={`${selectedYear}-${selectedMonth}-01`}
                                                         max={`${selectedYear}-${selectedMonth}-${new Date(selectedYear, parseInt(selectedMonth), 0).getDate()}`}
                                                         w="120px"
@@ -1045,7 +1114,7 @@ export default function DailyActivityModal({ isOpen, onClose }: DailyActivityMod
                                                         onChange={(e) => updateRow(index, 'driver_id', parseInt(e.target.value))}
                                                         size="xs"
                                                         fontSize="xs"
-                                                        isDisabled={isFinalized}
+                                                        isDisabled={false}
                                                         w="140px"
                                                     >
                                                         <option value={0}>Selectează șofer</option>
@@ -1064,7 +1133,7 @@ export default function DailyActivityModal({ isOpen, onClose }: DailyActivityMod
                                                         step={0.1}
                                                         min={0}
                                                         size="xs"
-                                                        isDisabled={isFinalized}
+                                                        isDisabled={false}
                                                         w="80px"
                                                     >
                                                         <NumberInputField fontSize="xs" />
@@ -1094,7 +1163,7 @@ export default function DailyActivityModal({ isOpen, onClose }: DailyActivityMod
                                                         }}
                                                         placeholder="0.00"
                                                         size="xs"
-                                                        isDisabled={isFinalized}
+                                                        isDisabled={false}
                                                         w="80px"
                                                         fontSize="xs"
                                                         type="number"
@@ -1121,7 +1190,7 @@ export default function DailyActivityModal({ isOpen, onClose }: DailyActivityMod
                                                         }}
                                                         placeholder="0.00"
                                                         size="xs"
-                                                        isDisabled={isFinalized}
+                                                        isDisabled={false}
                                                         w="80px"
                                                         fontSize="xs"
                                                         type="number"
@@ -1136,7 +1205,7 @@ export default function DailyActivityModal({ isOpen, onClose }: DailyActivityMod
                                                         step={0.1}
                                                         min={0}
                                                         size="xs"
-                                                        isDisabled={isFinalized}
+                                                        isDisabled={false}
                                                         w="80px"
                                                     >
                                                         <NumberInputField fontSize="xs" />
@@ -1168,7 +1237,7 @@ export default function DailyActivityModal({ isOpen, onClose }: DailyActivityMod
                                                         }}
                                                         placeholder="0.00"
                                                         size="xs"
-                                                        isDisabled={isFinalized}
+                                                        isDisabled={false}
                                                         w="80px"
                                                         fontSize="xs"
                                                         type="number"
@@ -1195,7 +1264,7 @@ export default function DailyActivityModal({ isOpen, onClose }: DailyActivityMod
                                                         }}
                                                         placeholder="0.00"
                                                         size="xs"
-                                                        isDisabled={isFinalized}
+                                                        isDisabled={false}
                                                         w="80px"
                                                         fontSize="xs"
                                                         type="number"
@@ -1210,7 +1279,7 @@ export default function DailyActivityModal({ isOpen, onClose }: DailyActivityMod
                                                         step={0.1}
                                                         min={0}
                                                         size="xs"
-                                                        isDisabled={isFinalized}
+                                                        isDisabled={false}
                                                         w="80px"
                                                     >
                                                         <NumberInputField fontSize="xs" />
@@ -1228,7 +1297,7 @@ export default function DailyActivityModal({ isOpen, onClose }: DailyActivityMod
                                                         step={0.1}
                                                         min={0}
                                                         size="xs"
-                                                        isDisabled={isFinalized}
+                                                        isDisabled={false}
                                                         w="80px"
                                                     >
                                                         <NumberInputField fontSize="xs" />
@@ -1246,7 +1315,7 @@ export default function DailyActivityModal({ isOpen, onClose }: DailyActivityMod
                                                         step={0.1}
                                                         min={0}
                                                         size="xs"
-                                                        isDisabled={isFinalized}
+                                                        isDisabled={false}
                                                         w="80px"
                                                     >
                                                         <NumberInputField fontSize="xs" />
@@ -1288,7 +1357,7 @@ export default function DailyActivityModal({ isOpen, onClose }: DailyActivityMod
                                                         }}
                                                         placeholder="0.00"
                                                         size="xs"
-                                                        isDisabled={isFinalized}
+                                                        isDisabled={false}
                                                         w="80px"
                                                         fontSize="xs"
                                                         type="number"
@@ -1306,12 +1375,12 @@ export default function DailyActivityModal({ isOpen, onClose }: DailyActivityMod
                                                             size="xs"
                                                             colorScheme="gray"
                                                             variant="ghost"
-                                                            draggable={!isFinalized}
+                                                            draggable
                                                             onDragStart={(e) => {
                                                                 e.dataTransfer.setData('text/plain', index.toString());
                                                                 e.dataTransfer.effectAllowed = 'move';
                                                             }}
-                                                            cursor={!isFinalized ? 'grab' : 'default'}
+                                                            cursor="grab"
                                                             _active={{ cursor: 'grabbing' }}
                                                         />
                                                         <IconButton
@@ -1321,7 +1390,7 @@ export default function DailyActivityModal({ isOpen, onClose }: DailyActivityMod
                                                             colorScheme="red"
                                                             variant="ghost"
                                                             onClick={() => confirmDeleteRow(index)}
-                                                            isDisabled={isFinalized}
+                                                            isDisabled={false}
                                                         />
                                                     </HStack>
                                                 </Td>

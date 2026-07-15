@@ -157,21 +157,7 @@ export default function EventAssignments({
       setLoading(true);
       console.log('📋 Loading assignments for event:', eventId);
       
-      const response = await fetch(`/api/calendar/test/events/${eventId}/assignments`, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      console.log('📥 Assignments response:', response.status, response.statusText);
-      
-      if (!response.ok) {
-        const errorData = await response.text();
-        console.error('❌ Failed to load assignments:', errorData);
-        throw new Error(`HTTP ${response.status}: ${errorData}`);
-      }
-
-      const data = await response.json();
+      const data = await calendarService.getEventAssignments(eventId);
       console.log('📋 Loaded assignments:', data);
       
       // Verificăm structura datelor pentru debugging
@@ -314,27 +300,11 @@ export default function EventAssignments({
         token: localStorage.getItem('jwt_token') ? 'Token exists' : 'No token'
       });
       
-      const response = await fetch(`/api/calendar/test/events/${eventId}/assignments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          userId: parseInt(selectedUserId),
-          role: selectedRole,
-          notes: notes || undefined
-        })
+      const result = await calendarService.createEventAssignment(eventId, {
+        userId: parseInt(selectedUserId),
+        role: selectedRole,
+        notes: notes || undefined
       });
-
-      console.log('📥 Assignment creation response:', response.status, response.statusText);
-      
-      if (!response.ok) {
-        const errorData = await response.text();
-        console.error('❌ Assignment creation failed:', errorData);
-        throw new Error(`HTTP ${response.status}: ${errorData}`);
-      }
-
-      const result = await response.json();
       console.log('✅ Assignment created successfully:', result);
 
       toast({

@@ -41,6 +41,7 @@ import type { CalendarEvent, EventType, EventStatus } from '../../types/calendar
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { CalendarService } from '../../services/CalendarService'
+import api from '../../services/api'
 import { DSPPermissionService } from '../../services/DSPPermissionService'
 import { useAuth } from '../../hooks/useAuth'
 import EventModal from './EventModal'
@@ -53,11 +54,133 @@ import EventApprovalWorkflow from './EventApprovalWorkflow'
 import EventReportingSystem from './EventReportingSystem'
 import EventSupplies from './EventSupplies'
 import AdvancedEventSearch from './AdvancedEventSearch'
-import { FiClock, FiMapPin, FiUser, FiCalendar, FiTag, FiEdit2, FiTrash2, FiX, FiUsers, FiSearch, FiTruck, FiFile, FiBell, FiCheckCircle, FiBarChart, FiPackage, FiChevronDown, FiFilter, FiSettings, FiFileText } from 'react-icons/fi'
+import { FiClock, FiMapPin, FiUser, FiCalendar, FiTag, FiEdit2, FiTrash2, FiX, FiUsers, FiSearch, FiTruck, FiFile, FiBell, FiCheckCircle, FiBarChart, FiPackage, FiChevronDown, FiFilter, FiSettings, FiFileText, FiAlertTriangle } from 'react-icons/fi'
 import DocumentViewerModal from './DocumentViewerModal'
 
 const calendarService = new CalendarService()
 const permissionService = DSPPermissionService.getInstance()
+
+const TRANSPORT_EVENT_TYPES = ['SUPPLY_ORDER', 'TRANSPORT_DELIVERY', 'TRANSPORT_PICKUP'];
+
+const isTransportEventType = (type?: string) => !!type && TRANSPORT_EVENT_TYPES.includes(type);
+
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  SUPPLY_ORDER: 'Comandă aprovizionare',
+  TRANSPORT_DELIVERY: 'Livrare transport',
+  TRANSPORT_PICKUP: 'Ridicare transport',
+  INSPECTION: 'Inspecție',
+  MEETING: 'Ședință',
+  TRAINING: 'Formare',
+  TRAVEL: 'Deplasare',
+  MAINTENANCE: 'Întreținere',
+  STOCK_RECEPTION: 'Primire marfă',
+  STOCK_DISTRIBUTION: 'Distribuire marfă',
+  STOCK_MOVEMENT: 'Mutare marfă',
+  INVENTORY_AUDIT: 'Inventariere',
+  OTHER: 'Altele',
+};
+
+const APPROVAL_STATUS_LABELS: Record<string, string> = {
+  DRAFT: 'Ciornă',
+  PENDING: 'În aprobare',
+  APPROVED: 'Aprobat',
+  REJECTED: 'Respins',
+};
+
+const getEventTypeLabel = (type?: string) =>
+  (type && EVENT_TYPE_LABELS[type]) || type || '—';
+
+const formatEventDuration = (startStr?: string, endStr?: string) => {
+  if (!startStr || !endStr) return '—';
+  try {
+    const start = new Date(startStr);
+    const end = new Date(endStr);
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) return '—';
+    const diffMs = end.getTime() - start.getTime();
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    if (hours > 0) return `${hours}h ${minutes}min`;
+    return `${minutes} min`;
+  } catch {
+    return '—';
+  }
+};
+
+const mapApiEventToCalendarEvent = (event: any): CalendarEvent => {
+  const safeJSONParse = (value: any, fallback: any = null) => {
+    if (!value) return fallback;
+    if (typeof value === 'string') {
+      try { return JSON.parse(value); } catch { return fallback; }
+    }
+    return value;
+  };
+
+  return {
+    id: event.id.toString(),
+    title: event.title || 'Eveniment fără titlu',
+    start: event.start_time || event.start,
+    end: event.end_time || event.end,
+    description: event.description || '',
+    type: event.type as EventType || 'OTHER',
+    status: event.status as EventStatus || 'PENDING',
+    userId: event.user_id || event.userId,
+    departmentId: event.department_id || event.departmentId,
+    isPrivate: Boolean(event.is_private === 1 || event.isPrivate),
+    location: event.location || null,
+    vehicleId: event.vehicle_id || event.vehicleId,
+    categoryId: event.category_id || event.categoryId,
+    priority: event.priority || 'MEDIUM',
+    approvalStatus: event.approval_status || event.approvalStatus || 'APPROVED',
+    approvedBy: event.approved_by || event.approvedBy,
+    approvedAt: event.approved_at || event.approvedAt,
+    parentEventId: event.parent_event_id || event.parentEventId,
+    isRecurring: Boolean(event.is_recurring || event.isRecurring),
+    metadata: event.metadata,
+    createdAt: event.created_at || event.createdAt || new Date().toISOString(),
+    updatedAt: event.updated_at || event.updatedAt || new Date().toISOString(),
+    user: safeJSONParse(event.user),
+    department: safeJSONParse(event.department),
+    vehicle: safeJSONParse(event.vehicle),
+    assignmentsCount: event.assignments_count || event.assignmentsCount || 0,
+  };
+};
+
+const parseEventMetadata = (metadata: unknown): Record<string, any> => {
+  if (!metadata) return {};
+  if (typeof metadata === 'string') {
+    try { return JSON.parse(metadata); } catch { return {}; }
+  }
+  return metadata as Record<string, any>;
+};
+
+const isEventFinalized = (metadata: unknown): boolean => {
+  const m = parseEventMetadata(metadata);
+  return m?.stockUpdated === true || m?.deliveryStatus === 'DELIVERED';
+};
+
+const formatEventInterval = (dateStr?: string) => {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleString('ro-RO', {
+      weekday: 'short', day: 'numeric', month: 'short',
+      hour: '2-digit', minute: '2-digit'
+    });
+  } catch { return '—'; }
+};
+
+const formatRoDateTime = (dateStr?: string) => {
+  if (!dateStr) return null;
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleDateString('ro-RO', {
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+  } catch { return null; }
+};
 
 const eventColors: Record<EventType, { bg: string; border: string }> = {
   INSPECTION: { bg: 'rgba(66, 153, 225, 0.9)', border: '#3182ce' }, // Albastru - Inspecții
@@ -103,11 +226,15 @@ export default function Calendar({ departmentId }: CalendarProps) {
   const [isApprovalWorkflowModalOpen, setIsApprovalWorkflowModalOpen] = useState(false)
   const [isReportingSystemModalOpen, setIsReportingSystemModalOpen] = useState(false)
   const [isStockManagementModalOpen, setIsStockManagementModalOpen] = useState(false)
+  const [viewEventAssignments, setViewEventAssignments] = useState<any[]>([])
+  const [viewEventMaterials, setViewEventMaterials] = useState<any[]>([])
+  const [viewDetailsLoading, setViewDetailsLoading] = useState(false)
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false)
   const [selectedStatus, setSelectedStatus] = useState<string>('')
   const [statusComments, setStatusComments] = useState<string>('')
   const [statusUpdateLoading, setStatusUpdateLoading] = useState(false)
   const [finalizeLoading, setFinalizeLoading] = useState(false)
+  const [isFinalizeConfirmModalOpen, setIsFinalizeConfirmModalOpen] = useState(false)
 
   const [eventNotifications, setEventNotifications] = useState<any[]>([])
   const bgColor = useColorModeValue('white', 'gray.800')
@@ -115,24 +242,55 @@ export default function Calendar({ departmentId }: CalendarProps) {
   const borderColor = useColorModeValue('gray.200', 'gray.600')
   const toast = useToast()
   const { user, isAuthenticated } = useAuth()
-  
-  // Verificăm dacă există parametrul ?event= în URL pentru a deschide evenimentul automat
-  useEffect(() => {
-    const eventIdParam = searchParams.get('event')
-    if (eventIdParam && events.length > 0) {
-      const eventId = parseInt(eventIdParam)
-      const eventToOpen = events.find(e => parseInt(e.id) === eventId)
-      
-      if (eventToOpen) {
-        console.log('📅 Opening event from URL parameter:', eventId)
-        setSelectedEvent(eventToOpen)
-        setIsViewModalOpen(true)
-        // Curățăm parametrul din URL după ce am deschis evenimentul
-        searchParams.delete('event')
-        setSearchParams(searchParams, { replace: true })
+
+  const openEventById = useCallback(async (eventId: number) => {
+    if (!Number.isFinite(eventId)) return;
+
+    let eventToOpen = events.find((e) => parseInt(String(e.id), 10) === eventId);
+
+    if (!eventToOpen) {
+      try {
+        const fetched = await calendarService.getEvents({});
+        const mapped = fetched.find((e: any) => Number(e.id) === eventId);
+        if (mapped) {
+          eventToOpen = mapApiEventToCalendarEvent(mapped);
+        }
+      } catch (error) {
+        console.error('Failed to fetch event for deep link:', error);
       }
     }
-  }, [events, searchParams, setSearchParams])
+
+    if (eventToOpen) {
+      setSelectedEvent(eventToOpen);
+      setIsViewModalOpen(true);
+    }
+  }, [events]);
+
+  // Verificăm dacă există parametrul ?event= în URL pentru a deschide evenimentul automat
+  useEffect(() => {
+    const eventIdParam = searchParams.get('event');
+    if (!eventIdParam) return;
+
+    const eventId = parseInt(eventIdParam, 10);
+    if (!Number.isFinite(eventId)) return;
+
+    openEventById(eventId).then(() => {
+      searchParams.delete('event');
+      setSearchParams(searchParams, { replace: true });
+    });
+  }, [events, searchParams, setSearchParams, openEventById]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const custom = e as CustomEvent<{ eventId: number }>;
+      const eventId = custom.detail?.eventId;
+      if (eventId) {
+        openEventById(eventId);
+      }
+    };
+    window.addEventListener('openCalendarEvent', handler);
+    return () => window.removeEventListener('openCalendarEvent', handler);
+  }, [openEventById]);
 
   // Adaug state global pentru documentul PDF de vizualizat
   const [pdfViewerDoc, setPdfViewerDoc] = useState<null | { id: number; file_name: string; mime_type: string }>(null)
@@ -261,21 +419,35 @@ export default function Calendar({ departmentId }: CalendarProps) {
       console.log('🎯 Finalizing transport order:', selectedEvent.id);
 
       const response = await calendarService.finalizeTransportOrder(selectedEvent.id);
+      const finalizedAt = response.finalizedAt || new Date().toISOString();
+      const formattedTime = formatRoDateTime(finalizedAt);
 
       toast({
-        title: '✅ Comandă Finalizată',
-        description: `Comanda a fost finalizată cu succes! Stocul a fost actualizat automat.`,
+        title: '✅ Livrare Finalizată',
+        description: formattedTime
+          ? `Stocul a fost actualizat. Finalizat la ${formattedTime}.`
+          : 'Comanda a fost finalizată cu succes! Stocul a fost actualizat automat.',
         status: 'success',
-        duration: 5000,
+        duration: 6000,
         isClosable: true,
       });
 
-      // Reîncarcă evenimentele pentru a vedea statusul actualizat
+      const updatedMetadata = {
+        ...parseEventMetadata(selectedEvent.metadata),
+        deliveryStatus: 'DELIVERED',
+        stockUpdated: true,
+        finalizedAt,
+        completedAt: finalizedAt,
+      };
+
+      setSelectedEvent({
+        ...selectedEvent,
+        status: 'COMPLETED',
+        metadata: updatedMetadata,
+      });
+
       loadEvents();
-      
-      // Închide modalul
-      setIsViewModalOpen(false);
-      setSelectedEvent(null);
+      setIsFinalizeConfirmModalOpen(false);
 
       console.log('✅ Transport order finalized successfully:', response);
     } catch (error: any) {
@@ -465,6 +637,37 @@ export default function Calendar({ departmentId }: CalendarProps) {
     }
   }, [loadEvents, user, isAuthenticated]);
 
+  useEffect(() => {
+    if (!isViewModalOpen || !selectedEvent?.id) {
+      setViewEventAssignments([]);
+      setViewEventMaterials([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadViewDetails = async () => {
+      setViewDetailsLoading(true);
+      try {
+        const [assignments, materialsRes] = await Promise.all([
+          calendarService.getEventAssignments(selectedEvent.id).catch(() => []),
+          api.get(`/calendar/events/${selectedEvent.id}/materials`).catch(() => ({ data: [] })),
+        ]);
+
+        if (!cancelled) {
+          setViewEventAssignments(Array.isArray(assignments) ? assignments : []);
+          const materials = materialsRes?.data;
+          setViewEventMaterials(Array.isArray(materials) ? materials : []);
+        }
+      } finally {
+        if (!cancelled) setViewDetailsLoading(false);
+      }
+    };
+
+    loadViewDetails();
+    return () => { cancelled = true; };
+  }, [isViewModalOpen, selectedEvent?.id]);
+
   const handleEventClick = useCallback((info: any) => {
     const event = info.event;
     const eventData: CalendarEvent = {
@@ -488,8 +691,8 @@ export default function Calendar({ departmentId }: CalendarProps) {
       parentEventId: event.extendedProps.parentEventId,
       isRecurring: event.extendedProps.isRecurring || false,
       metadata: event.extendedProps.metadata,
-      createdAt: event.extendedProps.createdAt,
-      updatedAt: event.extendedProps.updatedAt,
+      createdAt: event.extendedProps.createdAt || (event.start ? event.start.toISOString() : new Date().toISOString()),
+      updatedAt: event.extendedProps.updatedAt || (event.start ? event.start.toISOString() : new Date().toISOString()),
       user: event.extendedProps.user,
       department: event.extendedProps.department,
       vehicle: event.extendedProps.vehicle,
@@ -604,15 +807,16 @@ export default function Calendar({ departmentId }: CalendarProps) {
       });
 
       loadEvents();
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error creating event:', error);
       toast({
         title: 'Eroare la creare',
-        description: 'Nu s-a putut crea evenimentul. Încercați din nou.',
+        description: error?.response?.data?.message || error?.message || 'Nu s-a putut crea evenimentul. Încercați din nou.',
         status: 'error',
-        duration: 4000,
+        duration: 5000,
         isClosable: true,
       });
+      throw error;
     }
   };
 
@@ -730,13 +934,13 @@ export default function Calendar({ departmentId }: CalendarProps) {
       loadEvents();
       setIsViewModalOpen(false);
       setSelectedEvent(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error updating event:', error);
       toast({
         title: 'Eroare la actualizare',
-        description: 'Nu s-a putut actualiza evenimentul. Încercați din nou.',
+        description: error?.response?.data?.message || error?.message || 'Nu s-a putut actualiza evenimentul. Încercați din nou.',
         status: 'error',
-        duration: 4000,
+        duration: 5000,
         isClosable: true,
       });
     }
@@ -1176,8 +1380,8 @@ export default function Calendar({ departmentId }: CalendarProps) {
             isPrivate: event.isPrivate,
             location: event.location,
             vehicleId: event.vehicleId,
-            createdAt: event.createdAt,
-            updatedAt: event.updatedAt,
+            createdAt: event.createdAt || event.start,
+            updatedAt: event.updatedAt || event.start,
             user: event.user,
             department: event.department,
             vehicle: event.vehicle,
@@ -1228,7 +1432,7 @@ export default function Calendar({ departmentId }: CalendarProps) {
           setIsViewModalOpen(false);
           setSelectedEvent(null);
         }}
-        size={selectedEvent?.type === 'SUPPLY_ORDER' || selectedEvent?.type === 'TRANSPORT_DELIVERY' || selectedEvent?.type === 'TRANSPORT_PICKUP' ? "full" : "2xl"}
+        size={isTransportEventType(selectedEvent?.type) ? "6xl" : "2xl"}
         motionPreset="slideInBottom"
         isCentered
         scrollBehavior="inside"
@@ -1243,88 +1447,43 @@ export default function Calendar({ departmentId }: CalendarProps) {
           shadow="2xl"
           overflow="hidden"
           mx={4}
+          my={4}
           bg={useColorModeValue('white', 'gray.800')}
-          transform="scale(0.95)"
-          transition="all 0.3s ease"
-          _focus={{ transform: 'scale(1)' }}
-          maxH="calc(90vh - 16px)"
-          mt={4}
+          maxH="92vh"
+          display="flex"
+          flexDirection="column"
         >
           {selectedEvent && (
             <>
-              {/* Header elegant cu gradient subtil */}
-              <Box
-                position="relative"
-                overflow="hidden"
-              >
-                <Box
-                  bgGradient={useColorModeValue(
-                    'linear(135deg, blue.500, purple.600)',
-                    'linear(135deg, blue.600, purple.700)'
-                  )}
-                  color="white"
-                  p={8}
-                  pt={4}
-                  position="relative"
-                  _before={{
-                    content: '""',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    bgGradient: 'linear(45deg, transparent, whiteAlpha.100, transparent)',
-                    animation: 'shimmer 3s ease-in-out infinite',
-                  }}
-                >
-                  <Flex align="center" justify="space-between">
-                    <VStack align="start" spacing={3} flex={1}>
-                      <HStack spacing={6} mt={-3}>
-                        <Box
-                          bg="whiteAlpha.200"
-                          p={4}
-                          borderRadius="xl"
-                          backdropFilter="blur(10px)"
-                        >
-                        <Icon as={selectedEvent.type === 'SUPPLY_ORDER' ? FiTruck : FiCalendar} boxSize={8} />
-                        </Box>
-                          <Heading size="xl" fontWeight="bold" letterSpacing="tight">
-                          {selectedEvent.type === 'SUPPLY_ORDER' && selectedEvent.metadata ? 
-                            (() => {
-                              try {
-                                // MySQL poate returna metadata ca obiect JavaScript sau ca JSON string
-                                let metadata;
-                                if (typeof selectedEvent.metadata === 'string') {
-                                  metadata = JSON.parse(selectedEvent.metadata);
-                                } else if (typeof selectedEvent.metadata === 'object' && selectedEvent.metadata !== null) {
-                                  metadata = selectedEvent.metadata;
-                                } else {
-                                  return selectedEvent.title;
-                                }
-                                return metadata.supplierName || selectedEvent.title;
-                              } catch (error) {
-                                return selectedEvent.title;
-                              }
-                            })() : 
-                            selectedEvent.title
-                          }
-                          </Heading>
-                          </HStack>
-                    </VStack>
-                    <ModalCloseButton
-                      position="static"
-                      color="white"
-                      size="lg"
-                      mt={-4}
-                      _hover={{ bg: 'whiteAlpha.200', transform: 'rotate(90deg)' }}
-                      _active={{ transform: 'rotate(90deg) scale(0.95)' }}
-                      transition="all 0.2s"
-                    />
-                  </Flex>
-                </Box>
-              </Box>
+              <ModalHeader borderBottomWidth="1px" borderColor={borderColor} py={4}>
+                <VStack align="start" spacing={1}>
+                  <Heading size="md">{selectedEvent.title}</Heading>
+                  <HStack spacing={2} flexWrap="wrap">
+                    <Badge variant="outline">{getEventTypeLabel(selectedEvent.type)}</Badge>
+                    <Badge colorScheme={
+                      selectedEvent.status === 'COMPLETED' ? 'green' :
+                      selectedEvent.status === 'IN_PROGRESS' ? 'blue' :
+                      selectedEvent.status === 'CANCELLED' ? 'red' : 'orange'
+                    }>
+                      {getEventStatusName(selectedEvent.status)}
+                    </Badge>
+                    {selectedEvent.priority && (
+                      <Badge colorScheme="gray">{selectedEvent.priority}</Badge>
+                    )}
+                    {selectedEvent.isPrivate && (
+                      <Badge colorScheme="purple" variant="subtle">Privat</Badge>
+                    )}
+                    {selectedEvent.approvalStatus && selectedEvent.approvalStatus !== 'APPROVED' && (
+                      <Badge colorScheme="yellow" variant="subtle">
+                        {APPROVAL_STATUS_LABELS[selectedEvent.approvalStatus] || selectedEvent.approvalStatus}
+                      </Badge>
+                    )}
+                  </HStack>
+                </VStack>
+              </ModalHeader>
+              <ModalCloseButton />
 
-                            <ModalBody p={6}>
+              <ModalBody p={5}>
                 <VStack spacing={4} align="stretch">
                   {/* Pentru evenimente de transport, afișăm informații relevante într-un design modern */}
                   {selectedEvent.type === 'SUPPLY_ORDER' ? (
@@ -1504,271 +1663,125 @@ export default function Calendar({ departmentId }: CalendarProps) {
                       </SimpleGrid>
                     </Box>
                   ) : (
-                    // Pentru alte evenimente - design modernizat cu layout fluid
-                    <Box>
-                      {/* Header cu informații esențiale */}
-                      <Box
-                        bg={useColorModeValue('white', 'gray.800')}
-                        borderRadius="2xl"
-                        p={6}
-                        mb={6}
-                      border="1px solid"
-                        borderColor={useColorModeValue('gray.200', 'gray.600')}
-                        boxShadow="lg"
-                        position="relative"
-                        overflow="hidden"
-                      >
-                        {/* Gradient accent */}
-                        <Box
-                          position="absolute"
-                          top={0}
-                          left={0}
-                          right={0}
-                          height="4px"
-                          bgGradient="linear(90deg, #667eea 0%, #764ba2 100%)"
-                        />
-                        
-                        {/* Informații principale */}
-                        <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6}>
-                          {/* Interval orar - modernizat */}
-                          <Box>
-                            <HStack spacing={3} mb={3}>
-                              <Box
-                                p={2}
-                                borderRadius="lg"
-                                bg="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-                                color="white"
-                              >
-                                <Icon as={FiClock} boxSize={4} />
-                              </Box>
-                              <Text fontSize="sm" fontWeight="semibold" color={useColorModeValue('gray.700', 'gray.300')}>
-                          Interval Orar
+                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+                      <Box p={4} borderWidth="1px" borderColor={borderColor} borderRadius="md">
+                        <Text fontSize="sm" color={useColorModeValue('gray.600', 'gray.300')} mb={2}>Interval orar</Text>
+                        <Text fontSize="sm" color={useColorModeValue('gray.500', 'gray.400')}>Început</Text>
+                        <Text fontWeight="semibold" mb={2}>{formatEventInterval(selectedEvent.start)}</Text>
+                        <Text fontSize="sm" color={useColorModeValue('gray.500', 'gray.400')}>Sfârșit</Text>
+                        <Text fontWeight="semibold" mb={2}>{formatEventInterval(selectedEvent.end)}</Text>
+                        <Text fontSize="xs" color={useColorModeValue('gray.500', 'gray.400')}>
+                          Durată: {formatEventDuration(selectedEvent.start, selectedEvent.end)}
                         </Text>
-                      </HStack>
-                            <VStack align="start" spacing={2}>
-                              <Box>
-                                <Text fontSize="xs" color={useColorModeValue('gray.500', 'gray.400')} mb={1}>
-                                  Început
-                                </Text>
-                                <Text fontSize="lg" fontWeight="bold" color={useColorModeValue('gray.800', 'white')}>
-                          {(() => {
-                            try {
-                              const startDate = new Date(selectedEvent.start);
-                                      if (isNaN(startDate.getTime())) return 'Dată invalidă';
-                              return startDate.toLocaleString('ro-RO', {
-                                weekday: 'short',
-                                day: 'numeric',
-                                month: 'short',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              });
-                            } catch (error) {
-                              return 'Dată invalidă';
-                            }
-                          })()}
-                        </Text>
-                              </Box>
-                              <Box>
-                                <Text fontSize="xs" color={useColorModeValue('gray.500', 'gray.400')} mb={1}>
-                                  Sfârșit
-                                </Text>
-                                <Text fontSize="lg" fontWeight="bold" color={useColorModeValue('gray.800', 'white')}>
-                          {(() => {
-                            try {
-                              const endDate = new Date(selectedEvent.end);
-                                      if (isNaN(endDate.getTime())) return 'Dată invalidă';
-                              return endDate.toLocaleString('ro-RO', {
-                                weekday: 'short',
-                                day: 'numeric',
-                                month: 'short',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              });
-                            } catch (error) {
-                              return 'Dată invalidă';
-                            }
-                          })()}
-                        </Text>
-                              </Box>
-                      </VStack>
-                    </Box>
-
-                          {/* Status și prioritate - modernizat */}
-                          <Box>
-                            <HStack spacing={3} mb={3}>
-                    <Box
-                                p={2}
-                      borderRadius="lg"
-                                bg="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
-                                color="white"
-                              >
-                                <Icon as={FiTag} boxSize={4} />
-                              </Box>
-                              <Text fontSize="sm" fontWeight="semibold" color={useColorModeValue('gray.700', 'gray.300')}>
-                                Status & Prioritate
-                        </Text>
-                      </HStack>
-                            <VStack align="start" spacing={3}>
-                              <HStack spacing={2}>
-                                <Text fontSize="sm" color={useColorModeValue('gray.600', 'gray.400')}>Status:</Text>
-                                <Badge 
-                                  colorScheme={selectedEvent.status === 'COMPLETED' ? 'green' : 
-                                             selectedEvent.status === 'IN_PROGRESS' ? 'blue' : 
-                                             selectedEvent.status === 'CANCELLED' ? 'red' : 'orange'} 
-                                  size="md"
-                                  px={3}
-                                  py={1}
-                                  borderRadius="full"
-                                >
-                                  {getEventStatusName(selectedEvent.status)}
-                          </Badge>
-                        </HStack>
-                              <HStack spacing={2}>
-                                <Text fontSize="sm" color={useColorModeValue('gray.600', 'gray.400')}>Prioritate:</Text>
-                                <Badge 
-                                  colorScheme={selectedEvent.priority === 'HIGH' ? 'red' : 
-                                             selectedEvent.priority === 'MEDIUM' ? 'orange' : 'green'} 
-                                  size="md"
-                                  px={3}
-                                  py={1}
-                                  borderRadius="full"
-                                >
-                                  {selectedEvent.priority}
-                          </Badge>
-                        </HStack>
-                      </VStack>
-                    </Box>
-
-                          {/* Personal asignat - modernizat */}
-                          <Box>
-                            <HStack spacing={3} mb={3}>
-                              <Box
-                                p={2}
-                          borderRadius="lg"
-                                bg="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"
-                                color="white"
-                              >
-                                <Icon as={FiUsers} boxSize={4} />
-                              </Box>
-                              <Text fontSize="sm" fontWeight="semibold" color={useColorModeValue('gray.700', 'gray.300')}>
-                                Personal Asignat
-                              </Text>
-                            </HStack>
-                            <VStack align="start" spacing={2}>
-                              <Text fontSize="lg" fontWeight="bold" color={useColorModeValue('gray.800', 'white')}>
-                                {selectedEvent.assignmentsCount || 0} persoane
-                              </Text>
-                              {(selectedEvent.assignmentsCount || 0) > 0 && (
-                                <Text fontSize="sm" color={useColorModeValue('gray.600', 'gray.400')}>
-                                  Echipa completă
-                                </Text>
-                              )}
-                              {(selectedEvent.assignmentsCount || 0) > 0 && (
-                                <Button
-                                  size="xs"
-                                  colorScheme="blue"
-                                  variant="outline"
-                                  onClick={() => setIsAssignmentsModalOpen(true)}
-                                  _hover={{ transform: 'translateY(-1px)' }}
-                                  transition="all 0.2s"
-                                >
-                                  Vezi echipa
-                                </Button>
-                              )}
-                            </VStack>
-                          </Box>
-                        </SimpleGrid>
                       </Box>
-                    </Box>
-                  )}
 
-                    {/* Informații suplimentare pentru evenimente non-transport */}
-                    {selectedEvent.type !== 'SUPPLY_ORDER' && (
-                      <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-                        {/* Vehicul - doar dacă există */}
-                        {selectedEvent.vehicle && selectedEvent.vehicle.id && (
-                          <Box
-                            bg={useColorModeValue('white', 'gray.800')}
-                            borderRadius="xl"
-                            p={5}
-                          border="1px solid"
-                            borderColor={useColorModeValue('gray.200', 'gray.600')}
-                            boxShadow="md"
-                            _hover={{ transform: 'translateY(-2px)', shadow: 'lg' }}
-                            transition="all 0.3s ease"
-                          >
-                            <HStack spacing={3} mb={3}>
-                              <Box
-                                p={2}
-                                borderRadius="lg"
-                                bg="linear-gradient(135deg, #11998e 0%, #38ef7d 100%)"
-                                color="white"
-                              >
-                                <Icon as={FiTruck} boxSize={4} />
-                              </Box>
-                              <Text fontSize="sm" fontWeight="semibold" color={useColorModeValue('gray.700', 'gray.300')}>
-                                Vehicul Asignat
-                            </Text>
-                          </HStack>
-                            <VStack align="start" spacing={2}>
-                              <Text fontSize="lg" fontWeight="bold" color={useColorModeValue('gray.800', 'white')}>
-                                {selectedEvent.vehicle.brand} {selectedEvent.vehicle.model}
-                              </Text>
-                              <Text fontSize="sm" color={useColorModeValue('gray.600', 'gray.400')}>
-                                {selectedEvent.vehicle.registration_number}
-                              </Text>
-                              <Badge 
-                                colorScheme={selectedEvent.vehicle.status === 'AVAILABLE' ? 'green' : 'orange'} 
-                                size="sm"
-                                px={3}
-                                py={1}
-                                borderRadius="full"
-                              >
-                                {selectedEvent.vehicle.status}
-                              </Badge>
-                            </VStack>
-                        </Box>
-                        )}
-
-                        {/* Departament - doar dacă există */}
-                        {selectedEvent.department && selectedEvent.department.id && (
-                          <Box
-                            bg={useColorModeValue('white', 'gray.800')}
-                            borderRadius="xl"
-                            p={5}
-                          border="1px solid"
-                            borderColor={useColorModeValue('gray.200', 'gray.600')}
-                            boxShadow="md"
-                            _hover={{ transform: 'translateY(-2px)', shadow: 'lg' }}
-                            transition="all 0.3s ease"
-                          >
-                            <HStack spacing={3} mb={3}>
-                              <Box
-                                p={2}
-                                borderRadius="lg"
-                                bg="linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)"
-                                color="white"
-                              >
-                                <Icon as={FiUser} boxSize={4} />
-                              </Box>
-                              <Text fontSize="sm" fontWeight="semibold" color={useColorModeValue('gray.700', 'gray.300')}>
-                                Departament
-                            </Text>
-                          </HStack>
-                            <VStack align="start" spacing={2}>
-                              <Text fontSize="lg" fontWeight="bold" color={useColorModeValue('gray.800', 'white')}>
-                                {selectedEvent.department.name}
-                          </Text>
-                              {selectedEvent.department.description && (
-                                <Text fontSize="sm" color={useColorModeValue('gray.600', 'gray.400')}>
-                                  {selectedEvent.department.description}
+                      <Box p={4} borderWidth="1px" borderColor={borderColor} borderRadius="md">
+                        <Text fontSize="sm" color={useColorModeValue('gray.600', 'gray.300')} mb={2}>Echipă</Text>
+                        {viewDetailsLoading ? (
+                          <Text fontSize="sm" color={useColorModeValue('gray.500', 'gray.400')}>Se încarcă...</Text>
+                        ) : viewEventAssignments.length > 0 ? (
+                          <VStack align="start" spacing={1}>
+                            {viewEventAssignments.slice(0, 4).map((assignment: any) => {
+                              let userData = assignment.user;
+                              if (typeof userData === 'string') {
+                                try { userData = JSON.parse(userData); } catch { userData = null; }
+                              }
+                              const name = userData
+                                ? `${userData.firstName || ''} ${userData.lastName || ''}`.trim()
+                                : 'Utilizator';
+                              return (
+                                <Text key={assignment.id} fontSize="sm">
+                                  {name}{assignment.role ? ` · ${assignment.role}` : ''}
                                 </Text>
-                              )}
-                            </VStack>
-                        </Box>
+                              );
+                            })}
+                            {viewEventAssignments.length > 4 && (
+                              <Text fontSize="xs" color={useColorModeValue('gray.500', 'gray.400')}>
+                                +{viewEventAssignments.length - 4} altele
+                              </Text>
+                            )}
+                          </VStack>
+                        ) : (
+                          <Text fontWeight="semibold">
+                            {(selectedEvent.assignmentsCount || 0) === 1 ? '1 persoană' : `${selectedEvent.assignmentsCount || 0} persoane`}
+                          </Text>
                         )}
-                      </SimpleGrid>
-                    )}
+                        {(selectedEvent.assignmentsCount || 0) > 0 && (
+                          <Button size="xs" variant="link" mt={2} onClick={() => setIsAssignmentsModalOpen(true)}>
+                            Vezi echipa
+                          </Button>
+                        )}
+                      </Box>
+
+                      {(selectedEvent.user?.firstName || selectedEvent.user?.lastName || selectedEvent.user?.email) && (
+                        <Box p={4} borderWidth="1px" borderColor={borderColor} borderRadius="md">
+                          <Text fontSize="sm" color={useColorModeValue('gray.600', 'gray.300')} mb={2}>Creat de</Text>
+                          <Text fontWeight="semibold">
+                            {[selectedEvent.user?.firstName, selectedEvent.user?.lastName].filter(Boolean).join(' ') || '—'}
+                          </Text>
+                          {selectedEvent.user?.email && (
+                            <Text fontSize="sm" color={useColorModeValue('gray.500', 'gray.400')}>
+                              {selectedEvent.user.email}
+                            </Text>
+                          )}
+                        </Box>
+                      )}
+
+                      {viewEventMaterials.length > 0 && (
+                        <Box p={4} borderWidth="1px" borderColor={borderColor} borderRadius="md">
+                          <Text fontSize="sm" color={useColorModeValue('gray.600', 'gray.300')} mb={2}>
+                            Materiale ({viewEventMaterials.length})
+                          </Text>
+                          <VStack align="start" spacing={1}>
+                            {viewEventMaterials.slice(0, 3).map((material: any) => (
+                              <Text key={material.id} fontSize="sm">
+                                {material.product_name || material.productName || 'Produs'} · {material.quantity} {material.product_unit || material.productUnit || ''}
+                              </Text>
+                            ))}
+                            {viewEventMaterials.length > 3 && (
+                              <Button size="xs" variant="link" onClick={() => setIsStockManagementModalOpen(true)}>
+                                Vezi toate materialele
+                              </Button>
+                            )}
+                          </VStack>
+                        </Box>
+                      )}
+
+                      {selectedEvent.vehicle?.id && (
+                        <Box p={4} borderWidth="1px" borderColor={borderColor} borderRadius="md">
+                          <Text fontSize="sm" color={useColorModeValue('gray.600', 'gray.300')} mb={2}>Vehicul</Text>
+                          <Text fontWeight="semibold">{selectedEvent.vehicle.brand} {selectedEvent.vehicle.model}</Text>
+                          <Text fontSize="sm" color={useColorModeValue('gray.500', 'gray.400')}>{selectedEvent.vehicle.registration_number}</Text>
+                        </Box>
+                      )}
+
+                      {selectedEvent.department?.id && (
+                        <Box p={4} borderWidth="1px" borderColor={borderColor} borderRadius="md">
+                          <Text fontSize="sm" color={useColorModeValue('gray.600', 'gray.300')} mb={2}>Departament</Text>
+                          <Text fontWeight="semibold">{selectedEvent.department.name}</Text>
+                          {selectedEvent.department.description && (
+                            <Text fontSize="sm" color={useColorModeValue('gray.500', 'gray.400')} mt={1}>
+                              {selectedEvent.department.description}
+                            </Text>
+                          )}
+                        </Box>
+                      )}
+
+                      {selectedEvent.location && (
+                        <Box p={4} borderWidth="1px" borderColor={borderColor} borderRadius="md" gridColumn={{ md: 'span 2' }}>
+                          <Text fontSize="sm" color={useColorModeValue('gray.600', 'gray.300')} mb={2}>Locație</Text>
+                          <Text>{selectedEvent.location}</Text>
+                        </Box>
+                      )}
+
+                      {selectedEvent.description && (
+                        <Box p={4} borderWidth="1px" borderColor={borderColor} borderRadius="md" gridColumn={{ md: 'span 2' }}>
+                          <Text fontSize="sm" color={useColorModeValue('gray.600', 'gray.300')} mb={2}>Descriere</Text>
+                          <Text whiteSpace="pre-wrap">{selectedEvent.description}</Text>
+                        </Box>
+                      )}
+                    </SimpleGrid>
+                  )}
 
                     {/* Pentru evenimentele de transport, afișăm informații relevante */}
                     {selectedEvent.type === 'SUPPLY_ORDER' && (
@@ -1894,47 +1907,6 @@ export default function Calendar({ departmentId }: CalendarProps) {
                   )}
 
                   {/* Descriere - doar pentru evenimente non-transport */}
-                  {selectedEvent.description && selectedEvent.type !== 'SUPPLY_ORDER' && (
-                    <Box
-                      bg={useColorModeValue('white', 'gray.800')}
-                      borderRadius="xl"
-                      p={6}
-                      border="1px solid"
-                      borderColor={useColorModeValue('gray.200', 'gray.600')}
-                      boxShadow="md"
-                      _hover={{ transform: 'translateY(-2px)', shadow: 'lg' }}
-                      transition="all 0.3s ease"
-                    >
-                      <HStack spacing={3} mb={4}>
-                        <Box
-                          p={2}
-                      borderRadius="lg"
-                          bg="linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)"
-                          color="white"
-                        >
-                          <Icon as={FiFileText} boxSize={4} />
-                        </Box>
-                        <Text fontSize="sm" fontWeight="semibold" color={useColorModeValue('gray.700', 'gray.300')}>
-                          Descriere Eveniment
-                        </Text>
-                      </HStack>
-                      <Text 
-                        fontSize="md" 
-                        color={useColorModeValue('gray.800', 'gray.200')} 
-                        fontWeight="medium" 
-                        lineHeight="1.6" 
-                        whiteSpace="pre-wrap"
-                        bg={useColorModeValue('gray.50', 'gray.700')}
-                      p={4}
-                        borderRadius="lg"
-                      border="1px solid"
-                        borderColor={useColorModeValue('gray.200', 'gray.600')}
-                      >
-                        {selectedEvent.description}
-                      </Text>
-                    </Box>
-                  )}
-
                   {/* Document oficial pentru evenimente de transport */}
                   {(selectedEvent.type === 'SUPPLY_ORDER' || selectedEvent.type === 'TRANSPORT_DELIVERY' || selectedEvent.type === 'TRANSPORT_PICKUP') && selectedEvent.metadata && (
                     <ScaleFade in={true} initialScale={0.9}>
@@ -2011,23 +1983,7 @@ export default function Calendar({ departmentId }: CalendarProps) {
                     <Box textAlign="center">
                       <Text fontSize="xs" color={useColorModeValue('gray.500', 'gray.400')} mb={1}>📅 Creat la</Text>
                       <Text fontSize="xs" color={useColorModeValue('gray.700', 'gray.300')} fontWeight="medium">
-                        {(() => {
-                          try {
-                            const createdDate = new Date(selectedEvent.createdAt);
-                            if (isNaN(createdDate.getTime())) {
-                              return 'Dată invalidă';
-                            }
-                            return createdDate.toLocaleDateString('ro-RO', {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            });
-                          } catch (error) {
-                            return 'Dată invalidă';
-                          }
-                        })()}
+                        {formatRoDateTime(selectedEvent.createdAt) || '—'}
                       </Text>
                     </Box>
 
@@ -2055,6 +2011,25 @@ export default function Calendar({ departmentId }: CalendarProps) {
                         </Text>
                       </Box>
                     )}
+
+                    {(() => {
+                      const meta = parseEventMetadata(selectedEvent.metadata);
+                      const finalizedTime = formatRoDateTime(meta.finalizedAt || meta.completedAt);
+                      if (!finalizedTime) return null;
+                      return (
+                        <Box textAlign="center">
+                          <Text fontSize="xs" color={useColorModeValue('green.500', 'green.300')} mb={1}>✅ Finalizat la</Text>
+                          <Text fontSize="xs" color={useColorModeValue('green.700', 'green.200')} fontWeight="semibold">
+                            {finalizedTime}
+                          </Text>
+                          {selectedEvent.end && (
+                            <Text fontSize="xs" color={useColorModeValue('gray.500', 'gray.400')} mt={1}>
+                              Planificat: {formatRoDateTime(selectedEvent.end) || '—'}
+                            </Text>
+                          )}
+                        </Box>
+                      );
+                    })()}
                   </SimpleGrid>
                 </VStack>
               </ModalBody>
@@ -2068,37 +2043,10 @@ export default function Calendar({ departmentId }: CalendarProps) {
                 gap={4}
               >
                 {/* Prima linie - butoane principale */}
-                <SimpleGrid columns={{ base: 2, md: 3, lg: selectedEvent?.type === 'SUPPLY_ORDER' ? 4 : 5 }} spacing={3} w="full">
-                  {/* Pentru evenimentele de transport, afișăm doar butoanele relevante */}
-                  {selectedEvent?.type === 'SUPPLY_ORDER' ? (
+                <SimpleGrid columns={{ base: 2, md: 3, lg: isTransportEventType(selectedEvent?.type) ? 4 : 5 }} spacing={3} w="full">
+                  {isTransportEventType(selectedEvent?.type) ? (
                     <>
-                      {/* Status - pentru a schimba statusul comenzii (PENDING -> DELAYED -> DONE) */}
-                      <Button
-                        leftIcon={<FiCheckCircle />}
-                        variant="outline"
-                        size="md"
-                        borderRadius="xl"
-                        px={4}
-                        py={3}
-                        bg={useColorModeValue('white', 'gray.800')}
-                        borderColor={useColorModeValue('orange.200', 'orange.600')}
-                        color={useColorModeValue('orange.600', 'orange.300')}
-                        _hover={{ 
-                          bg: useColorModeValue('orange.50', 'orange.900'),
-                          borderColor: useColorModeValue('orange.300', 'orange.500'),
-                          transform: "translateY(-1px)",
-                          shadow: "md"
-                        }}
-                        transition="all 0.2s ease"
-                        fontSize="sm"
-                        fontWeight="semibold"
-                        onClick={handleOpenStatusModal}
-                      >
-                        Status
-                      </Button>
-
-                      {/* Finalizează Comandă - actualizează stocul automat - doar pentru inspector și admin */}
-                      {user?.roles?.some(role => ['INSPECTOR', 'ADMIN', 'SUPER_ADMIN', 'DEPARTMENT_ADMIN', 'MANAGER'].includes(role)) && (
+                      {user?.roles?.some(role => ['INSPECTOR', 'ADMIN', 'SUPER_ADMIN', 'DEPARTMENT_ADMIN', 'MANAGER', 'WAREHOUSE_KEEPER'].includes(role)) && (
                         <Button
                           leftIcon={<FiPackage />}
                           variant="solid"
@@ -2106,98 +2054,40 @@ export default function Calendar({ departmentId }: CalendarProps) {
                           borderRadius="xl"
                           px={4}
                           py={3}
-                          bgGradient="linear(135deg, green.500, green.600)"
+                          colorScheme="green"
                           color="white"
-                          _hover={{ 
-                            bgGradient: "linear(135deg, green.600, green.700)",
-                            transform: "translateY(-1px)",
-                            shadow: "lg"
-                          }}
+                          _hover={{ transform: "translateY(-1px)", shadow: "lg" }}
                           transition="all 0.2s ease"
                           fontSize="sm"
                           fontWeight="semibold"
-                          onClick={handleFinalizeOrder}
+                          onClick={() => setIsFinalizeConfirmModalOpen(true)}
                           isLoading={finalizeLoading}
                           loadingText="Finalizare..."
-                          isDisabled={
-                            selectedEvent?.metadata && (() => {
-                              try {
-                                const metadata = typeof selectedEvent.metadata === 'string' 
-                                  ? JSON.parse(selectedEvent.metadata) 
-                                  : selectedEvent.metadata;
-                                return metadata?.stockUpdated === true || metadata?.deliveryStatus === 'DELIVERED';
-                              } catch {
-                                return false;
-                              }
-                            })()
-                          }
+                          isDisabled={isEventFinalized(selectedEvent?.metadata)}
                         >
-                          {selectedEvent?.metadata && (() => {
-                            try {
-                              const metadata = typeof selectedEvent.metadata === 'string' 
-                                ? JSON.parse(selectedEvent.metadata) 
-                                : selectedEvent.metadata;
-                              return metadata?.stockUpdated ? 'Comandă Finalizată ✓' : 'Finalizează Comandă';
-                            } catch {
-                              return 'Finalizează Comandă';
-                            }
-                          })()}
+                          {isEventFinalized(selectedEvent?.metadata) ? 'Livrare Finalizată ✓' : 'Finalizează Livrare'}
                         </Button>
                       )}
 
-                      {/* Documente - pentru a adăuga documente la eveniment */}
                       <Button
-                        leftIcon={<FiFile />}
+                        leftIcon={<FiPackage />}
                         variant="outline"
                         size="md"
                         borderRadius="xl"
                         px={4}
                         py={3}
-                        bg={useColorModeValue('white', 'gray.800')}
-                        borderColor={useColorModeValue('teal.200', 'teal.600')}
-                        color={useColorModeValue('teal.600', 'teal.300')}
-                        _hover={{ 
-                          bg: useColorModeValue('teal.50', 'teal.900'),
-                          borderColor: useColorModeValue('teal.300', 'teal.500'),
-                          transform: "translateY(-1px)",
-                          shadow: "md"
-                        }}
+                        bg={useColorModeValue('white', 'gray.700')}
+                        borderColor={useColorModeValue('gray.300', 'gray.500')}
+                        color={useColorModeValue('gray.800', 'gray.100')}
+                        _hover={{ bg: useColorModeValue('gray.50', 'gray.600') }}
                         transition="all 0.2s ease"
                         fontSize="sm"
                         fontWeight="semibold"
-                        onClick={() => setIsDocumentsModalOpen(true)}
+                        onClick={() => setIsStockManagementModalOpen(true)}
                       >
-                        Documente
+                        Materiale
                       </Button>
 
-                      {/* Rapoarte - pentru a genera raportul evenimentului */}
-                      <Button
-                        leftIcon={<FiBarChart />}
-                        variant="outline"
-                        size="md"
-                        borderRadius="xl"
-                        px={4}
-                        py={3}
-                        bg={useColorModeValue('white', 'gray.800')}
-                        borderColor={useColorModeValue('blue.200', 'blue.600')}
-                        color={useColorModeValue('blue.600', 'blue.300')}
-                        _hover={{ 
-                          bg: useColorModeValue('blue.50', 'blue.900'),
-                          borderColor: useColorModeValue('blue.300', 'blue.500'),
-                          transform: "translateY(-1px)",
-                          shadow: "md"
-                        }}
-                        transition="all 0.2s ease"
-                        fontSize="sm"
-                        fontWeight="semibold"
-                        onClick={() => setIsReportingSystemModalOpen(true)}
-                      >
-                        Rapoarte
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      {/* Pentru evenimente normale, afișăm toate butoanele */}
                       <Button
                         leftIcon={<FiUsers />}
                         variant="outline"
@@ -2205,15 +2095,10 @@ export default function Calendar({ departmentId }: CalendarProps) {
                         borderRadius="xl"
                         px={4}
                         py={3}
-                        bg={useColorModeValue('white', 'gray.800')}
-                        borderColor={useColorModeValue('purple.200', 'purple.600')}
-                        color={useColorModeValue('purple.600', 'purple.300')}
-                        _hover={{ 
-                          bg: useColorModeValue('purple.50', 'purple.900'),
-                          borderColor: useColorModeValue('purple.300', 'purple.500'),
-                          transform: "translateY(-1px)",
-                          shadow: "md"
-                        }}
+                        bg={useColorModeValue('white', 'gray.700')}
+                        borderColor={useColorModeValue('gray.300', 'gray.500')}
+                        color={useColorModeValue('gray.800', 'gray.100')}
+                        _hover={{ bg: useColorModeValue('gray.50', 'gray.600') }}
                         transition="all 0.2s ease"
                         fontSize="sm"
                         fontWeight="semibold"
@@ -2229,15 +2114,10 @@ export default function Calendar({ departmentId }: CalendarProps) {
                         borderRadius="xl"
                         px={4}
                         py={3}
-                        bg={useColorModeValue('white', 'gray.800')}
-                        borderColor={useColorModeValue('teal.200', 'teal.600')}
-                        color={useColorModeValue('teal.600', 'teal.300')}
-                        _hover={{ 
-                          bg: useColorModeValue('teal.50', 'teal.900'),
-                          borderColor: useColorModeValue('teal.300', 'teal.500'),
-                          transform: "translateY(-1px)",
-                          shadow: "md"
-                        }}
+                        bg={useColorModeValue('white', 'gray.700')}
+                        borderColor={useColorModeValue('gray.300', 'gray.500')}
+                        color={useColorModeValue('gray.800', 'gray.100')}
+                        _hover={{ bg: useColorModeValue('gray.50', 'gray.600') }}
                         transition="all 0.2s ease"
                         fontSize="sm"
                         fontWeight="semibold"
@@ -2247,76 +2127,16 @@ export default function Calendar({ departmentId }: CalendarProps) {
                       </Button>
 
                       <Button
-                        leftIcon={<FiPackage />}
-                        variant="outline"
-                        size="md"
-                        borderRadius="xl"
-                        px={4}
-                        py={3}
-                        bg={useColorModeValue('white', 'gray.800')}
-                        borderColor={useColorModeValue('green.200', 'green.600')}
-                        color={useColorModeValue('green.600', 'green.300')}
-                        _hover={{ 
-                          bg: useColorModeValue('green.50', 'green.900'),
-                          borderColor: useColorModeValue('green.300', 'green.500'),
-                          transform: "translateY(-1px)",
-                          shadow: "md"
-                        }}
-                        transition="all 0.2s ease"
-                        fontSize="sm"
-                        fontWeight="semibold"
-                        onClick={() => {
-                          // Închidem modalul principal pentru a evita problemele de layering
-                          setIsViewModalOpen(false);
-                          // Deschidem modalul de materiale după o scurtă pauză
-                          setTimeout(() => {
-                            setIsStockManagementModalOpen(true);
-                          }, 100);
-                        }}
-                      >
-                        Materiale Eveniment
-                      </Button>
-
-                      <Button
-                        leftIcon={<FiCheckCircle />}
-                        variant="outline"
-                        size="md"
-                        borderRadius="xl"
-                        px={4}
-                        py={3}
-                        bg={useColorModeValue('white', 'gray.800')}
-                        borderColor={useColorModeValue('purple.200', 'purple.600')}
-                        color={useColorModeValue('purple.600', 'purple.300')}
-                        _hover={{ 
-                          bg: useColorModeValue('purple.50', 'purple.900'),
-                          borderColor: useColorModeValue('purple.300', 'purple.500'),
-                          transform: "translateY(-1px)",
-                          shadow: "md"
-                        }}
-                        transition="all 0.2s ease"
-                        fontSize="sm"
-                        fontWeight="semibold"
-                        onClick={() => setIsApprovalWorkflowModalOpen(true)}
-                      >
-                        Aprobare
-                      </Button>
-
-                      <Button
                         leftIcon={<FiBarChart />}
                         variant="outline"
                         size="md"
                         borderRadius="xl"
                         px={4}
                         py={3}
-                        bg={useColorModeValue('white', 'gray.800')}
-                        borderColor={useColorModeValue('blue.200', 'blue.600')}
-                        color={useColorModeValue('blue.600', 'blue.300')}
-                        _hover={{ 
-                          bg: useColorModeValue('blue.50', 'blue.900'),
-                          borderColor: useColorModeValue('blue.300', 'blue.500'),
-                          transform: "translateY(-1px)",
-                          shadow: "md"
-                        }}
+                        bg={useColorModeValue('white', 'gray.700')}
+                        borderColor={useColorModeValue('gray.300', 'gray.500')}
+                        color={useColorModeValue('gray.800', 'gray.100')}
+                        _hover={{ bg: useColorModeValue('gray.50', 'gray.600') }}
                         transition="all 0.2s ease"
                         fontSize="sm"
                         fontWeight="semibold"
@@ -2324,6 +2144,31 @@ export default function Calendar({ departmentId }: CalendarProps) {
                       >
                         Rapoarte
                       </Button>
+                    </>
+                  ) : (
+                    <>
+                      {[
+                        { icon: FiUsers, label: 'Asignări', onClick: () => setIsAssignmentsModalOpen(true) },
+                        { icon: FiFile, label: 'Documente', onClick: () => setIsDocumentsModalOpen(true) },
+                        { icon: FiPackage, label: 'Materiale', onClick: () => setIsStockManagementModalOpen(true) },
+                        { icon: FiCheckCircle, label: 'Aprobare', onClick: () => setIsApprovalWorkflowModalOpen(true) },
+                        { icon: FiBarChart, label: 'Rapoarte', onClick: () => setIsReportingSystemModalOpen(true) },
+                      ].map((btn) => (
+                        <Button
+                          key={btn.label}
+                          leftIcon={<btn.icon />}
+                          variant="outline"
+                          size="sm"
+                          borderRadius="md"
+                          bg={useColorModeValue('white', 'gray.700')}
+                          borderColor={useColorModeValue('gray.300', 'gray.500')}
+                          color={useColorModeValue('gray.800', 'gray.100')}
+                          _hover={{ bg: useColorModeValue('gray.50', 'gray.600') }}
+                          onClick={btn.onClick}
+                        >
+                          {btn.label}
+                        </Button>
+                      ))}
                     </>
                   )}
                 </SimpleGrid>
@@ -2349,26 +2194,8 @@ export default function Calendar({ departmentId }: CalendarProps) {
                       {canEdit && (
                         <Button
                           leftIcon={<FiEdit2 />}
-                          size="md"
-                          borderRadius="xl"
-                          px={6}
-                          py={3}
-                          bgGradient={useColorModeValue(
-                            'linear(135deg, blue.500, blue.600)',
-                            'linear(135deg, blue.600, blue.700)'
-                          )}
-                          color="white"
-                          _hover={{ 
-                            bgGradient: useColorModeValue(
-                              'linear(135deg, blue.600, blue.700)',
-                              'linear(135deg, blue.700, blue.800)'
-                            ),
-                            transform: "translateY(-1px)",
-                            shadow: "md"
-                          }}
-                          transition="all 0.2s ease"
-                          fontSize="sm"
-                          fontWeight="semibold"
+                          size="sm"
+                          colorScheme="blue"
                           onClick={() => {
                             console.log('🔧 Edit button clicked for event:', {
                               eventId: selectedEvent.id,
@@ -2514,6 +2341,53 @@ export default function Calendar({ departmentId }: CalendarProps) {
         event={selectedEvent}
         isLoading={deleteLoading}
       />
+
+      <Modal
+        isOpen={isFinalizeConfirmModalOpen}
+        onClose={() => setIsFinalizeConfirmModalOpen(false)}
+        isCentered
+        size="md"
+      >
+        <ModalOverlay backdropFilter="blur(8px)" />
+        <ModalContent borderRadius="2xl">
+          <ModalHeader>
+            <HStack spacing={3}>
+              <Icon as={FiAlertTriangle} color="orange.400" boxSize={5} />
+              <Text>Confirmare finalizare livrare</Text>
+            </HStack>
+          </ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack align="start" spacing={3}>
+              <Text>
+                Sigur doriți să finalizați livrarea pentru <strong>{selectedEvent?.title}</strong>?
+              </Text>
+              <Text fontSize="sm" color={useColorModeValue('gray.600', 'gray.400')}>
+                Stocul va fi actualizat automat cu produsele din comandă. Ora finalizării va fi înregistrată — util dacă produsele au sosit mai devreme decât data planificată.
+              </Text>
+              {selectedEvent?.end && (
+                <Badge colorScheme="blue" fontSize="sm">
+                  Planificat: {formatRoDateTime(selectedEvent.end) || selectedEvent.end}
+                </Badge>
+              )}
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={() => setIsFinalizeConfirmModalOpen(false)}>
+              Anulează
+            </Button>
+            <Button
+              colorScheme="green"
+              leftIcon={<FiCheckCircle />}
+              onClick={handleFinalizeOrder}
+              isLoading={finalizeLoading}
+              loadingText="Se finalizează..."
+            >
+              Da, finalizează livrarea
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
       {selectedEvent && (
         <EventAssignments
@@ -2794,67 +2668,26 @@ export default function Calendar({ departmentId }: CalendarProps) {
         </ModalContent>
       </Modal>
 
-      {/* Modal pentru gestionarea materialelor - EventSupplies */}
       {selectedEvent && (
-        <Modal
+        <EventSupplies
+          eventId={selectedEvent.id}
+          eventTitle={selectedEvent.title}
+          eventDate={selectedEvent.start}
+          eventStatus={selectedEvent.status || 'PENDING'}
           isOpen={isStockManagementModalOpen}
-          onClose={() => {
-            setIsStockManagementModalOpen(false);
-            // Revenim la modalul principal după închiderea modalului de materiale
-            setTimeout(() => {
-              setIsViewModalOpen(true);
-            }, 100);
-          }}
-          size="6xl"
-          motionPreset="slideInBottom"
-          isCentered
-        >
-          <ModalOverlay backdropFilter="blur(20px)" bg="blackAlpha.700" />
-          <ModalContent
-            borderRadius="3xl"
-            border="none"
-            shadow="2xl"
-            overflow="hidden"
-            mx={4}
-            bg={useColorModeValue('white', 'gray.800')}
-          >
-            <ModalCloseButton color="white" />
-            <ModalBody p={0}>
-              <EventSupplies
-                eventId={selectedEvent.id}
-                eventTitle={selectedEvent.title}
-                eventDate={selectedEvent.start}
-                eventStatus={selectedEvent.status || 'PENDING'}
-                isOpen={isStockManagementModalOpen}
-                onClose={() => setIsStockManagementModalOpen(false)}
-                canEdit={(() => {
-                  if (!user) return false;
-                  // Pentru admin, permitem întotdeauna editarea materialelor
-                  const adminRoles = ['SUPER_ADMIN', 'ADMIN', 'DEPARTMENT_ADMIN', 'MANAGER'];
-                  const isAdmin = user.roles.some(role => adminRoles.includes(role));
-                  
-                  if (isAdmin) {
-                    console.log('🔐 Admin user detected, allowing material management');
-                    return true;
-                  }
-                  
-                  const userRole = user.roles[0] as any;
-                  const canEditResult = permissionService.canPerformAction(userRole, 'MANAGE_STOCK', {
-                    eventUserId: selectedEvent.userId,
-                    currentUserId: Number(user.id)
-                  });
-                  console.log('🔐 EventSupplies canEdit calculation:', {
-                    userRole,
-                    eventUserId: selectedEvent.userId,
-                    currentUserId: Number(user.id),
-                    canEditResult
-                  });
-                  return canEditResult;
-                })()}
-              />
-            </ModalBody>
-          </ModalContent>
-        </Modal>
+          onClose={() => setIsStockManagementModalOpen(false)}
+          canEdit={(() => {
+            if (!user) return false;
+            const adminRoles = ['SUPER_ADMIN', 'ADMIN', 'DEPARTMENT_ADMIN', 'MANAGER'];
+            const isAdmin = user.roles.some(role => adminRoles.includes(role));
+            if (isAdmin) return true;
+            const userRole = user.roles[0] as any;
+            return permissionService.canPerformAction(userRole, 'MANAGE_STOCK', {
+              eventUserId: selectedEvent.userId,
+              currentUserId: Number(user.id)
+            });
+          })()}
+        />
       )}
 
       {/* Modal pentru schimbarea statusului comenzii de transport */}

@@ -272,6 +272,29 @@ export const MaterialRequestController = {
           
           transportEventId = transportResult.insertId;
           
+          // Adaugă materialul în event_stock_operations pentru afișare în modalul Materiale
+          try {
+            await pool.execute(
+              `INSERT INTO event_stock_operations (
+                event_id, product_id, operation_type, quantity, unit_cost,
+                notes, created_by, status
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                transportEventId,
+                requestDetails[0].product_id,
+                'RECEPTION',
+                quantity,
+                unitPrice,
+                `Cerere MR-${requestDetails[0].request_number}`,
+                approverId,
+                'PLANNED'
+              ]
+            );
+            console.log('✅ Stock operation created for transport event');
+          } catch (stockOpError) {
+            console.error('⚠️ Could not create stock operation for transport event:', stockOpError);
+          }
+          
           // Creează legătura în supply_events
           await pool.execute(
             `INSERT INTO supply_events 
@@ -293,7 +316,7 @@ export const MaterialRequestController = {
       }
       
       // Trimite notificare solicitantului
-      await sendNotificationToRequester(requestDetails[0], 'APPROVED');
+      await sendNotificationToRequester(requestDetails[0], 'APPROVED', transportEventId);
       
       // Creează audit entry pentru aprobarea cererii
       await TraceabilityService.auditMaterialRequest({
@@ -447,12 +470,14 @@ export const MaterialRequestController = {
           mr.rejected_at,
           mr.rejected_by,
           rejector.first_name AS rejector_first_name,
-          rejector.last_name AS rejector_last_name
+          rejector.last_name AS rejector_last_name,
+          se.event_id AS transport_event_id
         FROM material_requests mr
         JOIN products p ON mr.product_id = p.id
         JOIN users u ON mr.requester_id = u.id
         LEFT JOIN users approver ON mr.approved_by = approver.id
         LEFT JOIN users rejector ON mr.rejected_by = rejector.id
+        LEFT JOIN supply_events se ON se.request_id = mr.id
         WHERE mr.id = ?`,
         [id]
       );
@@ -533,17 +558,32 @@ async function sendNotificationToInspectors(request: any) {
 }
 
 // Funcție helper pentru trimiterea notificărilor solicitantului
-async function sendNotificationToRequester(request: any, status: string) {
+async function sendNotificationToRequester(request: any, status: string, transportEventId?: number | null) {
   try {
     const message = status === 'APPROVED' 
       ? `✅ Cererea ta pentru ${request.product_name} a fost aprobată!`
       : `❌ Cererea ta pentru ${request.product_name} a fost respinsă.`;
+
+    const notificationData = JSON.stringify({
+      request_id: request.id,
+      request_number: request.request_number,
+      product_name: request.product_name,
+      quantity_approved: request.quantity_approved || request.quantity_requested,
+      status,
+      transport_event_id: transportEventId || null,
+    });
     
     // Salvează în baza de date
     await pool.execute(
-      `INSERT INTO notifications (user_id, type, message, status, created_at)
-       VALUES (?, 'MATERIAL_REQUEST_UPDATE', ?, 'unread', NOW())`,
-      [request.requester_id, message]
+      `INSERT INTO notifications (user_id, type, message, status, request_id, event_id, data, created_at)
+       VALUES (?, 'MATERIAL_REQUEST_UPDATE', ?, 'unread', ?, ?, ?, NOW())`,
+      [
+        request.requester_id,
+        message,
+        request.id,
+        transportEventId || null,
+        notificationData,
+      ]
     );
     
     // Trimite prin WebSocket
@@ -551,6 +591,7 @@ async function sendNotificationToRequester(request: any, status: string) {
       type: 'MATERIAL_REQUEST_UPDATE',
       message: message,
       request_id: request.id,
+      event_id: transportEventId || null,
       product_name: request.product_name,
       status: status
     });

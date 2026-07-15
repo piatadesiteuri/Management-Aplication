@@ -41,18 +41,8 @@ import {
   FormErrorMessage,
   AlertTitle,
   AlertDescription,
-  IconButton,
-  Tooltip,
-  Progress,
-  useDisclosure,
-  Collapse,
-  ScaleFade,
-  SlideFade,
-  Fade,
-  Slide,
 } from '@chakra-ui/react';
-import { keyframes } from '@emotion/react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { EventType, EventStatus, CalendarEvent, Department, EventCategoryType, TransportEventData } from '../../types/calendar';
 import { FiClock, FiUsers, FiTruck, FiMapPin, FiFileText, FiCalendar, FiUser, FiPackage, FiPlus, FiX, FiArrowRight, FiArrowLeft, FiCheck, FiAlertCircle, FiStar, FiZap } from 'react-icons/fi';
 import { CalendarService } from '../../services/CalendarService';
@@ -123,39 +113,17 @@ const combineDateAndTime = (date: Date, timeStr: string): Date => {
   return newDate;
 };
 
-// Animații moderne
-const fadeInUp = keyframes`
-  from { 
-    opacity: 0; 
-    transform: translateY(20px); 
-  }
-  to { 
-    opacity: 1; 
-    transform: translateY(0); 
-  }
-`;
-
-const slideInRight = keyframes`
-  from { 
-    opacity: 0; 
-    transform: translateX(30px); 
-  }
-  to { 
-    opacity: 1; 
-    transform: translateX(0); 
-  }
-`;
-
-const pulseGlow = keyframes`
-  0% { box-shadow: 0 0 0 0 rgba(56, 178, 172, 0.4); }
-  70% { box-shadow: 0 0 0 10px rgba(56, 178, 172, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(56, 178, 172, 0); }
-`;
-
-const shimmer = keyframes`
-  0% { background-position: -200px 0; }
-  100% { background-position: calc(200px + 100%) 0; }
-`;
+function FormSection({ title, children }: { title: string; children: ReactNode }) {
+  const borderColor = useColorModeValue('gray.200', 'gray.600');
+  return (
+    <Box borderWidth="1px" borderColor={borderColor} borderRadius="md" p={4}>
+      <Text fontSize="sm" fontWeight="semibold" mb={3}>
+        {title}
+      </Text>
+      {children}
+    </Box>
+  );
+}
 
 export default function EventModal({
   isOpen,
@@ -657,7 +625,55 @@ export default function EventModal({
 
     // Combine the selected date with the time inputs
     const eventStart = combineDateAndTime(startDate, startTime);
-    const eventEnd = combineDateAndTime(startDate, endTime); // Use startDate for both to ensure same day
+    const eventEnd = combineDateAndTime(startDate, endTime);
+
+    if (selectedCategory !== 'TRANSPORT') {
+      const excludeId = editMode && initialData?.id ? String(initialData.id) : undefined;
+      try {
+        if (needsVehicle && vehicleId) {
+          const vehicles = await calendarService.checkVehicleAvailability(
+            eventStart.toISOString(),
+            eventEnd.toISOString(),
+            excludeId
+          );
+          const selectedVehicle = vehicles.find((v: any) => v.id === vehicleId);
+          if (selectedVehicle && !selectedVehicle.isAvailable) {
+            toast({
+              title: 'Conflict de programare',
+              description: selectedVehicle.conflictReason || 'Vehiculul este deja folosit în acest interval.',
+              status: 'error',
+              duration: 6000,
+              isClosable: true,
+            });
+            return;
+          }
+        }
+
+        if (assignedUsers.length > 0) {
+          const personnel = await calendarService.checkPersonnelAvailability(
+            eventStart.toISOString(),
+            eventEnd.toISOString(),
+            excludeId,
+            selectedDepartment ? parseInt(selectedDepartment) : undefined
+          );
+          const conflicted = assignedUsers
+            .map((uid) => personnel.find((p: any) => p.id === uid))
+            .find((p) => p && !p.isAvailable);
+          if (conflicted) {
+            toast({
+              title: 'Conflict de programare',
+              description: conflicted.conflictReason || 'Un membru al echipei are deja alt eveniment în acest interval.',
+              status: 'error',
+              duration: 6000,
+              isClosable: true,
+            });
+            return;
+          }
+        }
+      } catch (conflictError) {
+        console.error('Conflict check failed:', conflictError);
+      }
+    }
 
     const eventData: any = {
       title,
@@ -720,7 +736,12 @@ export default function EventModal({
     switch (eventType) {
       case 'INSPECTION': return 'blue';
       case 'TRAVEL': return 'green';
-      case 'MEETING': return 'orange';
+      case 'MEETING': return 'purple';
+      case 'TRAINING': return 'orange';
+      case 'SUPPLY_ORDER':
+      case 'TRANSPORT_DELIVERY':
+      case 'TRANSPORT_PICKUP':
+        return 'teal';
       default: return 'gray';
     }
   };
@@ -740,6 +761,136 @@ export default function EventModal({
     }
   };
 
+  const EVENT_TYPE_LABELS: Record<string, string> = {
+    SUPPLY_ORDER: 'Comandă aprovizionare',
+    TRANSPORT_DELIVERY: 'Livrare transport',
+    TRANSPORT_PICKUP: 'Ridicare transport',
+    INSPECTION: 'Inspecție',
+    MEETING: 'Ședință',
+    TRAINING: 'Formare',
+    TRAVEL: 'Deplasare',
+    MAINTENANCE: 'Întreținere',
+    STOCK_RECEPTION: 'Primire marfă',
+    STOCK_DISTRIBUTION: 'Distribuire marfă',
+    STOCK_MOVEMENT: 'Mutare marfă',
+    INVENTORY_AUDIT: 'Inventariere',
+    OTHER: 'Altele',
+  };
+
+  const getEventTypeLabel = (eventType: EventType) =>
+    EVENT_TYPE_LABELS[eventType] || eventType;
+
+  const getEventStatusLabel = (status: EventStatus) => {
+    switch (status) {
+      case 'DRAFT': return 'Ciornă';
+      case 'PENDING': return 'În așteptare';
+      case 'APPROVED': return 'Aprobat';
+      case 'IN_PROGRESS': return 'În desfășurare';
+      case 'COMPLETED': return 'Finalizat';
+      case 'CANCELLED': return 'Anulat';
+      case 'POSTPONED': return 'Amânat';
+      case 'URGENT': return 'Urgent';
+      default: return status;
+    }
+  };
+
+  const sortedDayEvents = [...existingEvents].sort(
+    (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()
+  );
+
+  const renderDayEventsPanel = () => (
+    <Box
+      borderWidth="1px"
+      borderColor={borderColor}
+      borderRadius="md"
+      p={3}
+    >
+      <Text fontSize="sm" fontWeight="semibold" mb={2}>
+        Programul zilei ({sortedDayEvents.length})
+      </Text>
+      {loading ? (
+        <Text fontSize="sm" color={mutedTextColor} py={2}>
+          Se încarcă evenimentele...
+        </Text>
+      ) : sortedDayEvents.length === 0 ? (
+        <Text fontSize="sm" color={mutedTextColor} py={2}>
+          Niciun eveniment programat în această zi.
+        </Text>
+      ) : (
+        <VStack spacing={2} align="stretch" maxH="220px" overflowY="auto">
+          {sortedDayEvents.map((event, index) => (
+            <Box
+              key={event.id || index}
+              p={2}
+              borderWidth="1px"
+              borderColor={borderColor}
+              borderRadius="md"
+              bg={cardBgColor}
+            >
+              <HStack justify="space-between" align="start" spacing={2}>
+                <Box flex={1} minW={0}>
+                  <HStack spacing={2} mb={1} flexWrap="wrap">
+                    <Text fontSize="xs" fontWeight="semibold" color={primaryColor}>
+                      {formatTime(event.start)} – {formatTime(event.end)}
+                    </Text>
+                    <Badge colorScheme={getEventTypeColor(event.type)} fontSize="xs">
+                      {getEventTypeLabel(event.type)}
+                    </Badge>
+                    <Badge
+                      colorScheme={
+                        event.status === 'COMPLETED' ? 'green' :
+                        event.status === 'IN_PROGRESS' ? 'blue' :
+                        event.status === 'CANCELLED' ? 'red' : 'orange'
+                      }
+                      fontSize="xs"
+                      variant="subtle"
+                    >
+                      {getEventStatusLabel(event.status)}
+                    </Badge>
+                  </HStack>
+                  <Text fontSize="sm" fontWeight="medium" noOfLines={1}>
+                    {event.title}
+                  </Text>
+                  <HStack spacing={3} mt={1} flexWrap="wrap">
+                    {event.location && (
+                      <HStack spacing={1}>
+                        <Icon as={FiMapPin} boxSize={3} color={mutedTextColor} />
+                        <Text fontSize="xs" color={mutedTextColor} noOfLines={1}>
+                          {event.location}
+                        </Text>
+                      </HStack>
+                    )}
+                    {(event.assignmentsCount || 0) > 0 && (
+                      <HStack spacing={1}>
+                        <Icon as={FiUsers} boxSize={3} color={mutedTextColor} />
+                        <Text fontSize="xs" color={mutedTextColor}>
+                          {event.assignmentsCount} {event.assignmentsCount === 1 ? 'persoană' : 'persoane'}
+                        </Text>
+                      </HStack>
+                    )}
+                    {event.vehicle?.registration_number && (
+                      <HStack spacing={1}>
+                        <Icon as={FiTruck} boxSize={3} color={mutedTextColor} />
+                        <Text fontSize="xs" color={mutedTextColor}>
+                          {event.vehicle.brand} {event.vehicle.model}
+                        </Text>
+                      </HStack>
+                    )}
+                  </HStack>
+                  {event.description && (
+                    <Text fontSize="xs" color={mutedTextColor} mt={1} noOfLines={2}>
+                      {event.description}
+                    </Text>
+                  )}
+                </Box>
+              </HStack>
+            </Box>
+          ))}
+        </VStack>
+      )}
+    </Box>
+  );
+
   // Determină dacă butonul de submit trebuie să fie disabled
   const isSubmitDisabled = () => {
     if (selectedCategory === 'TRANSPORT') {
@@ -754,354 +905,136 @@ export default function EventModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="6xl" scrollBehavior="inside">
-      <ModalOverlay 
-        backdropFilter="blur(12px)" 
-        bg="blackAlpha.400"
-        animation={`${fadeInUp} 0.3s ease-out`}
-      />
-      <ModalContent 
-        bg={bgColor} 
-        borderRadius="3xl" 
-        maxH="90vh"
-        boxShadow="2xl"
-        border="1px solid"
-        borderColor={borderColor}
-        animation={`${slideInRight} 0.4s ease-out`}
-        overflow="hidden"
-      >
-        {/* Header modernizat */}
-        <ModalHeader 
-          borderBottomWidth="1px" 
-          borderColor={borderColor} 
-          pb={6}
-          bg={cardBgColor}
-          position="relative"
-          overflow="hidden"
-        >
-          {/* Background pattern */}
-          <Box
-            position="absolute"
-            top={0}
-            right={0}
-            w="200px"
-            h="200px"
-            bg={`linear-gradient(135deg, ${primaryColor}20, ${secondaryColor}20)`}
-            borderRadius="full"
-            transform="translate(50px, -50px)"
-            opacity={0.6}
-          />
-          
-          <Flex align="center" gap={4} position="relative" zIndex={1}>
-            <Box
-              p={3}
-              borderRadius="xl"
-              bg={`linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`}
-              boxShadow="lg"
-              animation={`${pulseGlow} 2s infinite`}
-            >
-              <Icon as={FiCalendar} color="white" boxSize={6} />
-            </Box>
+    <Modal isOpen={isOpen} onClose={onClose} size="4xl" scrollBehavior="inside">
+      <ModalOverlay />
+      <ModalContent bg={bgColor} maxH="90vh">
+        <ModalHeader borderBottomWidth="1px" borderColor={borderColor} py={4}>
+          <Flex align="center" gap={3}>
+            <Icon as={FiCalendar} color={mutedTextColor} boxSize={5} />
             <Box>
-              <Heading 
-                size="lg" 
-                bgGradient={`linear(to-r, ${primaryColor}, ${secondaryColor})`}
-                bgClip="text"
-                fontWeight="bold"
-              >
-                {editMode ? 'Editare Eveniment' : 'Creare Eveniment Nou'}
+              <Heading size="md" fontWeight="semibold">
+                {editMode ? 'Editare eveniment' : 'Creare eveniment nou'}
               </Heading>
-              <Text 
-                fontSize="sm" 
-                color="gray.500" 
-                mt={1}
-                fontWeight="medium"
-              >
-                {startDate.toLocaleDateString('ro-RO', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
+              <Text fontSize="sm" color={mutedTextColor} mt={0.5}>
+                {startDate.toLocaleDateString('ro-RO', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
                 })}
               </Text>
             </Box>
           </Flex>
         </ModalHeader>
-        
-        <ModalCloseButton 
-          size="lg"
-          borderRadius="full"
-          bg={cardBgColor}
-          _hover={{
-            bg: borderColor,
-            transform: 'scale(1.1)',
-          }}
-          transition="all 0.2s"
-        />
-        
-        <ModalBody py={8}>
-          <ScaleFade in={isOpen} initialScale={0.95}>
-            {(currentStep === 'SELECT_TYPE' || (!editMode && !selectedCategory)) && (
-              // Pasul 1: Selectarea tipului de eveniment - modernizat
-              <VStack spacing={8} align="stretch">
-                <Box textAlign="center" py={4}>
-                  <Heading 
-                    size="lg" 
-                    mb={3}
-                    bgGradient={`linear(to-r, ${primaryColor}, ${secondaryColor})`}
-                    bgClip="text"
-                  >
-                    Selectați tipul evenimentului
-                  </Heading>
-                                <Text 
-                color={mutedTextColor} 
-                fontSize="lg"
-                fontWeight="medium"
-              >
-                Alegeți categoria pentru a continua cu configurarea evenimentului
-              </Text>
+        <ModalCloseButton />
+
+        <ModalBody py={4}>
+          {(currentStep === 'SELECT_TYPE' || (!editMode && !selectedCategory)) && (
+              <VStack spacing={4} align="stretch">
+                {renderDayEventsPanel()}
+                <Divider />
+                <Box>
+                  <Text fontWeight="medium" mb={1}>Selectați tipul evenimentului</Text>
+                  <Text color={mutedTextColor} fontSize="sm">
+                    Alegeți categoria pentru a continua cu configurarea
+                  </Text>
                 </Box>
-                
-                <SlideFade in={true} offsetY="20px">
-                  <EventTypeSelector 
-                    selectedCategory={selectedCategory}
-                    onCategorySelect={handleCategorySelect}
-                  />
-                </SlideFade>
+                <EventTypeSelector
+                  selectedCategory={selectedCategory}
+                  onCategorySelect={handleCategorySelect}
+                />
               </VStack>
             )}
 
             {currentStep === 'CONFIGURE_EVENT' && (
-              // Pasul 2: Configurarea evenimentului - modernizat
-              <VStack spacing={8} align="stretch">
+              <VStack spacing={4} align="stretch">
                 {!editMode && (
-                  <SlideFade in={true} offsetY="20px">
-                    <HStack justify="space-between">
-                      <Button 
-                        leftIcon={<Icon as={FiArrowLeft} />}
-                        variant="outline" 
-                        size="md"
-                        onClick={handleBackToTypeSelection}
-                        borderRadius="xl"
-                        borderWidth="2px"
-                        _hover={{
-                          transform: 'translateX(-4px)',
-                          boxShadow: 'lg',
-                        }}
-                        transition="all 0.3s"
-                      >
-                        ← Schimbă tipul evenimentului
-                      </Button>
-                    </HStack>
-                  </SlideFade>
+                  <Button
+                    leftIcon={<Icon as={FiArrowLeft} />}
+                    variant="ghost"
+                    size="sm"
+                    alignSelf="flex-start"
+                    onClick={handleBackToTypeSelection}
+                  >
+                    Schimbă tipul evenimentului
+                  </Button>
                 )}
 
-                <Tabs 
-                  variant="enclosed" 
-                  colorScheme="teal" 
-                  index={activeTab} 
-                  onChange={setActiveTab}
-                  borderRadius="xl"
-                  overflow="hidden"
-                >
-                  <TabList 
-                    bg={cardBgColor}
-                    borderBottom="2px solid"
-                    borderColor={borderColor}
-                  >
-                    <Tab
-                      _selected={{
-                        bg: primaryColor,
-                        color: 'white',
-                        borderRadius: 'xl',
-                        boxShadow: 'lg',
-                      }}
-                      borderRadius="xl"
-                      mx={2}
-                      my={2}
-                      transition="all 0.3s"
-                      _hover={{
-                        transform: 'translateY(-2px)',
-                      }}
-                    >
-                      <Icon as={FiFileText} mr={2} />
-                      {selectedCategory === 'TRANSPORT' ? 'Configurare Transport' : 'Detalii Eveniment'}
+                <Tabs variant="line" colorScheme="blue" index={activeTab} onChange={setActiveTab}>
+                  <TabList>
+                    <Tab fontSize="sm" py={2}>
+                      {selectedCategory === 'TRANSPORT' ? 'Configurare transport' : 'Detalii eveniment'}
                     </Tab>
-                    <Tab
-                      _selected={{
-                        bg: secondaryColor,
-                        color: 'white',
-                        borderRadius: 'xl',
-                        boxShadow: 'lg',
-                      }}
-                      borderRadius="xl"
-                      mx={2}
-                      my={2}
-                      transition="all 0.3s"
-                      _hover={{
-                        transform: 'translateY(-2px)',
-                      }}
-                    >
-                      <Icon as={FiCalendar} mr={2} />
-                      Evenimente Existente ({existingEvents.length})
+                    <Tab fontSize="sm" py={2}>
+                      Evenimente existente ({existingEvents.length})
                     </Tab>
                   </TabList>
 
                   <TabPanels>
-                    {/* Tab 1: Configurare - modernizat */}
-                    <TabPanel px={0} py={6}>
-                      <SlideFade in={true} offsetY="20px">
+                    <TabPanel px={0} py={4}>
                         {selectedCategory === 'TRANSPORT' ? (
-                          // Formular pentru transport - modernizat
-                          <Box
-                            borderRadius="2xl"
-                            bg={transportBgColor}
-                            p={6}
-                            border="2px solid"
-                            borderColor={transportBorderColor}
-                          >
-                            <TransportEventForm
-                              onSubmit={handleTransportDataChange}
-                              endDate={endDate}
-                              initialData={transportData || undefined}
-                              editMode={editMode}
-                            />
-                          </Box>
+                          <TransportEventForm
+                            onSubmit={handleTransportDataChange}
+                            endDate={endDate}
+                            initialData={transportData || undefined}
+                            editMode={editMode}
+                          />
                         ) : (
-                          // Formular clasic pentru evenimente operaționale - modernizat
-                          <VStack spacing={8} align="stretch">
-                            {/* Informații de bază - modernizat */}
-                            <Card
-                              borderRadius="2xl"
-                              boxShadow="xl"
-                              border="1px solid"
-                              borderColor={borderColor}
-                              overflow="hidden"
-                              _hover={{
-                                transform: 'translateY(-4px)',
-                                boxShadow: '2xl',
-                              }}
-                              transition="all 0.3s"
-                            >
-                              <CardHeader 
-                                pb={4}
-                                bg={`linear-gradient(135deg, ${primaryColor}10, ${secondaryColor}10)`}
-                                borderBottom="1px solid"
-                                borderColor={borderColor}
-                              >
-                                <HStack>
-                                  <Box
-                                    p={2}
-                                    borderRadius="lg"
-                                    bg={primaryColor}
-                                    color="white"
-                                  >
-                                    <Icon as={FiFileText} boxSize={5} />
-                                  </Box>
-                                  <Heading size="md">Informații de Bază</Heading>
-                                </HStack>
-                              </CardHeader>
-                              <CardBody pt={6}>
-                                <VStack spacing={6}>
-                                  <FormControl isRequired isInvalid={!!errors.title}>
-                                    <FormLabel fontWeight="semibold" color={textColor}>
-                                      Titlu Eveniment
-                                    </FormLabel>
-                                    <Input
-                                      placeholder="ex: Inspecție Spital Județean"
-                                      value={title}
-                                      onChange={(e) => setTitle(e.target.value)}
-                                      size="lg"
-                                      borderRadius="xl"
-                                      borderWidth="2px"
-                                      _focus={{
-                                        borderColor: primaryColor,
-                                        boxShadow: `0 0 0 1px ${primaryColor}`,
-                                      }}
-                                      _hover={{
-                                        borderColor: secondaryColor,
-                                      }}
-                                      transition="all 0.2s"
-                                    />
-                                    <FormErrorMessage>{errors.title}</FormErrorMessage>
-                                  </FormControl>
+                          <VStack spacing={4} align="stretch">
+                            <FormSection title="Informații de bază">
+                              <VStack spacing={3} align="stretch">
+                                <FormControl isRequired isInvalid={!!errors.title}>
+                                  <FormLabel fontSize="sm">Titlu eveniment</FormLabel>
+                                  <Input
+                                    placeholder="ex: Inspecție Spital Județean"
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value)}
+                                    size="sm"
+                                  />
+                                  <FormErrorMessage>{errors.title}</FormErrorMessage>
+                                </FormControl>
 
-                                  <FormControl>
-                                    <FormLabel fontWeight="semibold" color={textColor}>
-                                      Descriere Detaliată
-                                    </FormLabel>
-                                    <Textarea
-                                      placeholder="Descrieți scopul și detaliile evenimentului..."
-                                      value={description}
-                                      onChange={(e) => setDescription(e.target.value)}
-                                      size="lg"
-                                      borderRadius="xl"
-                                      borderWidth="2px"
-                                      rows={4}
-                                      _focus={{
-                                        borderColor: primaryColor,
-                                        boxShadow: `0 0 0 1px ${primaryColor}`,
-                                      }}
-                                      _hover={{
-                                        borderColor: secondaryColor,
-                                      }}
-                                      transition="all 0.2s"
-                                    />
-                                  </FormControl>
+                                <FormControl>
+                                  <FormLabel fontSize="sm">Descriere</FormLabel>
+                                  <Textarea
+                                    placeholder="Descrieți scopul și detaliile evenimentului..."
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    size="sm"
+                                    rows={3}
+                                  />
+                                </FormControl>
 
+                                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
                                   <FormControl isRequired>
-                                    <FormLabel fontWeight="semibold" color={textColor}>
-                                      Tip Activitate
-                                    </FormLabel>
+                                    <FormLabel fontSize="sm">Tip activitate</FormLabel>
                                     <Select
                                       value={type}
                                       onChange={(e) => setType(e.target.value as EventType)}
-                                      size="lg"
-                                      borderRadius="xl"
-                                      borderWidth="2px"
-                                      _focus={{
-                                        borderColor: primaryColor,
-                                        boxShadow: `0 0 0 1px ${primaryColor}`,
-                                      }}
-                                      _hover={{
-                                        borderColor: secondaryColor,
-                                      }}
-                                      transition="all 0.2s"
+                                      size="sm"
                                     >
-                                      <option value="INSPECTION">🔍 Inspecție</option>
-                                      <option value="TRAVEL">🚗 Deplasare</option>
-                                      <option value="MEETING">👥 Ședință</option>
-                                      <option value="TRAINING">📚 Formare</option>
-                                      <option value="MAINTENANCE">🔧 Întreținere</option>
-                                      <optgroup label="--- Gestionare Stoc ---">
-                                        <option value="STOCK_RECEPTION">📦 Primire Marfă</option>
-                                        <option value="STOCK_DISTRIBUTION">🚚 Distribuire Marfă</option>
-                                        <option value="STOCK_MOVEMENT">↔️ Mutare Marfă</option>
-                                        <option value="INVENTORY_AUDIT">📋 Inventariere</option>
+                                      <option value="INSPECTION">Inspecție</option>
+                                      <option value="TRAVEL">Deplasare</option>
+                                      <option value="MEETING">Ședință</option>
+                                      <option value="TRAINING">Formare</option>
+                                      <option value="MAINTENANCE">Întreținere</option>
+                                      <optgroup label="Gestionare stoc">
+                                        <option value="STOCK_RECEPTION">Primire marfă</option>
+                                        <option value="STOCK_DISTRIBUTION">Distribuire marfă</option>
+                                        <option value="STOCK_MOVEMENT">Mutare marfă</option>
+                                        <option value="INVENTORY_AUDIT">Inventariere</option>
                                       </optgroup>
-                                      <option value="OTHER">📋 Altele</option>
+                                      <option value="OTHER">Altele</option>
                                     </Select>
                                   </FormControl>
 
                                   <FormControl>
-                                    <FormLabel fontWeight="semibold" color={textColor}>
-                                      Departament
-                                    </FormLabel>
-                                    <Select 
-                                      value={selectedDepartment} 
+                                    <FormLabel fontSize="sm">Departament</FormLabel>
+                                    <Select
+                                      value={selectedDepartment}
                                       onChange={(e) => setSelectedDepartment(e.target.value)}
                                       placeholder="Selectați departamentul"
-                                      size="lg"
-                                      borderRadius="xl"
-                                      borderWidth="2px"
-                                      _focus={{
-                                        borderColor: primaryColor,
-                                        boxShadow: `0 0 0 1px ${primaryColor}`,
-                                      }}
-                                      _hover={{
-                                        borderColor: secondaryColor,
-                                      }}
-                                      transition="all 0.2s"
+                                      size="sm"
                                     >
                                       {departments.map((dept) => (
                                         <option key={dept.id} value={dept.id}>
@@ -1109,489 +1042,118 @@ export default function EventModal({
                                         </option>
                                       ))}
                                     </Select>
-                                    <FormHelperText>
-                                      Selectați departamentul responsabil pentru acest eveniment
-                                    </FormHelperText>
                                   </FormControl>
+                                </SimpleGrid>
 
-                                  <LocationAutocomplete
-                                    value={location}
-                                    onChange={setLocation}
-                                  />
-                                </VStack>
-                              </CardBody>
-                            </Card>
+                                <LocationAutocomplete value={location} onChange={setLocation} />
+                              </VStack>
+                            </FormSection>
 
-                            {/* Program - modernizat */}
-                            <Card
-                              borderRadius="2xl"
-                              boxShadow="xl"
-                              border="1px solid"
-                              borderColor={borderColor}
-                              overflow="hidden"
-                              _hover={{
-                                transform: 'translateY(-4px)',
-                                boxShadow: '2xl',
-                              }}
-                              transition="all 0.3s"
-                            >
-                              <CardHeader 
-                                pb={4}
-                                bg={`linear-gradient(135deg, ${secondaryColor}10, ${accentColor}10)`}
-                                borderBottom="1px solid"
-                                borderColor={borderColor}
-                              >
-                                <HStack>
-                                  <Box
-                                    p={2}
-                                    borderRadius="lg"
-                                    bg={secondaryColor}
-                                    color="white"
-                                  >
-                                    <Icon as={FiClock} boxSize={5} />
-                                  </Box>
-                                  <Heading size="md">Program Eveniment</Heading>
-                                </HStack>
-                              </CardHeader>
-                              <CardBody pt={6}>
-                                <VStack spacing={4} align="stretch">
-                                  <TimeRangePicker
-                                    startTime={startTime}
-                                    endTime={endTime}
-                                    onStartTimeChange={setStartTime}
-                                    onEndTimeChange={setEndTime}
-                                    size="lg"
-                                  />
-                                  {errors.time && (
-                                    <Alert 
-                                      status="error" 
-                                      borderRadius="xl"
-                                      border="2px solid"
-                                      borderColor="red.200"
-                                    >
-                                      <AlertIcon />
-                                      <Box>
-                                        <AlertTitle>Conflict de programare!</AlertTitle>
-                                        <AlertDescription whiteSpace="pre-line" fontSize="sm">
-                                          {errors.time}
-                                        </AlertDescription>
-                                      </Box>
-                                    </Alert>
-                                  )}
-                                </VStack>
-                              </CardBody>
-                            </Card>
+                            <FormSection title="Program">
+                              <VStack spacing={3} align="stretch">
+                                <TimeRangePicker
+                                  startTime={startTime}
+                                  endTime={endTime}
+                                  onStartTimeChange={setStartTime}
+                                  onEndTimeChange={setEndTime}
+                                />
+                                {errors.time && (
+                                  <Alert status="error" size="sm" borderRadius="md">
+                                    <AlertIcon />
+                                    <AlertDescription whiteSpace="pre-line" fontSize="sm">
+                                      {errors.time}
+                                    </AlertDescription>
+                                  </Alert>
+                                )}
+                              </VStack>
+                            </FormSection>
 
-                            {/* Resurse și Personal - modernizat */}
-                            <Card
-                              borderRadius="2xl"
-                              boxShadow="xl"
-                              border="1px solid"
-                              borderColor={borderColor}
-                              overflow="hidden"
-                              _hover={{
-                                transform: 'translateY(-4px)',
-                                boxShadow: '2xl',
-                              }}
-                              transition="all 0.3s"
-                            >
-                              <CardHeader 
-                                pb={4}
-                                bg={`linear-gradient(135deg, ${accentColor}10, ${primaryColor}10)`}
-                                borderBottom="1px solid"
-                                borderColor={borderColor}
-                              >
-                                <HStack>
-                                  <Box
-                                    p={2}
-                                    borderRadius="lg"
-                                    bg={accentColor}
-                                    color="white"
-                                  >
-                                    <Icon as={FiUsers} boxSize={5} />
-                                  </Box>
-                                  <Heading size="md">Resurse și Personal</Heading>
-                                </HStack>
-                              </CardHeader>
-                              <CardBody pt={6}>
-                                <VStack spacing={8} align="stretch">
-                                  {/* Personal cu dropdown și verificare disponibilitate */}
-                                  <PersonnelSelector
-                                    selectedPersonnel={assignedUsers}
-                                    onPersonnelChange={setAssignedUsers}
-                                    startTime={combineDateAndTime(startDate, startTime).toISOString()}
-                                    endTime={combineDateAndTime(startDate, endTime).toISOString()}
-                                    departmentId={selectedDepartment ? parseInt(selectedDepartment) : undefined}
-                                    excludeEventId={editMode && initialData ? initialData.id : undefined}
-                                    isDisabled={false}
-                                  />
+                            <FormSection title="Resurse">
+                              <VStack spacing={4} align="stretch">
+                                <PersonnelSelector
+                                  selectedPersonnel={assignedUsers}
+                                  onPersonnelChange={setAssignedUsers}
+                                  startTime={combineDateAndTime(startDate, startTime).toISOString()}
+                                  endTime={combineDateAndTime(startDate, endTime).toISOString()}
+                                  departmentId={selectedDepartment ? parseInt(selectedDepartment) : undefined}
+                                  excludeEventId={editMode && initialData ? initialData.id : undefined}
+                                  isDisabled={false}
+                                />
 
-                                  {/* Vehicul cu verificare disponibilitate */}
-                                  <VehicleSelector
-                                    needsVehicle={needsVehicle}
-                                    onNeedsVehicleChange={setNeedsVehicle}
-                                    selectedVehicleId={vehicleId}
-                                    onVehicleChange={setVehicleId}
-                                    startTime={combineDateAndTime(startDate, startTime).toISOString()}
-                                    endTime={combineDateAndTime(startDate, endTime).toISOString()}
-                                    excludeEventId={editMode && initialData ? initialData.id : undefined}
-                                    isDisabled={false}
-                                  />
+                                <Divider />
 
-                                  {/* Produse din stoc pentru evenimente care au nevoie */}
-                                  {(['INSPECTION', 'TRAINING', 'MEETING', 'MAINTENANCE'].includes(type)) && (
+                                <VehicleSelector
+                                  needsVehicle={needsVehicle}
+                                  onNeedsVehicleChange={setNeedsVehicle}
+                                  selectedVehicleId={vehicleId}
+                                  onVehicleChange={setVehicleId}
+                                  startTime={combineDateAndTime(startDate, startTime).toISOString()}
+                                  endTime={combineDateAndTime(startDate, endTime).toISOString()}
+                                  excludeEventId={editMode && initialData ? initialData.id : undefined}
+                                  isDisabled={false}
+                                />
+
+                                {(['INSPECTION', 'TRAINING', 'MEETING', 'MAINTENANCE'].includes(type)) && (
+                                  <>
+                                    <Divider />
                                     <EventProductSelector
                                       eventType={type}
                                       selectedProducts={selectedProducts}
                                       onProductsChange={setSelectedProducts}
                                     />
-                                  )}
+                                  </>
+                                )}
 
-                                  {/* Confidențialitate - modernizat */}
-                                  <FormControl>
-                                    <FormLabel fontWeight="semibold" color={textColor}>
-                                      Confidențialitate
-                                    </FormLabel>
-                                    <HStack spacing={4}>
-                                      <Switch
-                                        size="lg"
-                                        isChecked={isPrivate}
-                                        onChange={(e) => setIsPrivate(e.target.checked)}
-                                        colorScheme="teal"
-                                      />
-                                      <Text fontSize="sm" color={mutedTextColor}>
-                                        Eveniment privat
-                                      </Text>
-                                    </HStack>
-                                    <FormHelperText>
-                                      Evenimentele private sunt vizibile doar pentru personal autorizat
-                                    </FormHelperText>
-                                  </FormControl>
-                                </VStack>
-                              </CardBody>
-                            </Card>
+                                <Divider />
+
+                                <FormControl>
+                                  <HStack spacing={3}>
+                                    <Switch
+                                      size="sm"
+                                      isChecked={isPrivate}
+                                      onChange={(e) => setIsPrivate(e.target.checked)}
+                                      colorScheme="blue"
+                                    />
+                                    <Box>
+                                      <Text fontSize="sm">Eveniment privat</Text>
+                                      <FormHelperText mt={0}>
+                                        Vizibil doar pentru personal autorizat
+                                      </FormHelperText>
+                                    </Box>
+                                  </HStack>
+                                </FormControl>
+                              </VStack>
+                            </FormSection>
                           </VStack>
                         )}
-                      </SlideFade>
                     </TabPanel>
 
-                    {/* Tab 2: Evenimente Existente - modernizat */}
-                    <TabPanel px={0} py={6}>
-                      <SlideFade in={true} offsetY="20px">
-                        <VStack spacing={8} align="stretch">
-                          {loading ? (
-                            <Box textAlign="center" py={12}>
-                              <Box
-                                w="60px"
-                                h="60px"
-                                mx="auto"
-                                mb={4}
-                                borderRadius="full"
-                                bg={`linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`}
-                                animation={`${shimmer} 1.5s infinite`}
-                              />
-                              <Text fontSize="lg" color={mutedTextColor} fontWeight="medium">
-                                Se încarcă evenimente...
-                              </Text>
-                            </Box>
-                          ) : existingEvents.length === 0 ? (
-                            <Box textAlign="center" py={12}>
-                              <Box
-                                w="80px"
-                                h="80px"
-                                mx="auto"
-                                mb={6}
-                                borderRadius="full"
-                                bg={cardBgColor}
-                                display="flex"
-                                alignItems="center"
-                                justifyContent="center"
-                              >
-                                <Icon as={FiCalendar} boxSize={10} color={mutedTextColor} />
-                              </Box>
-                              <Text fontSize="xl" fontWeight="bold" color={mutedTextColor} mb={3}>
-                                Niciun eveniment programat
-                              </Text>
-                              <Text fontSize="md" color={mutedTextColor} fontWeight="medium">
-                                Pentru {startDate.toLocaleDateString('ro-RO', { 
-                                  weekday: 'long', 
-                                  day: 'numeric', 
-                                  month: 'long', 
-                                  year: 'numeric' 
-                                })}
-                              </Text>
-                            </Box>
-                          ) : (
-                            <>
-                              <Box
-                                bg={`linear-gradient(135deg, ${secondaryColor}10, ${primaryColor}10)`}
-                                p={6}
-                                borderRadius="2xl"
-                                border="2px solid"
-                                borderColor={transportBorderColor}
-                                position="relative"
-                                overflow="hidden"
-                              >
-                                {/* Background pattern */}
-                                <Box
-                                  position="absolute"
-                                  top={0}
-                                  right={0}
-                                  w="100px"
-                                  h="100px"
-                                  bg={`linear-gradient(135deg, ${secondaryColor}20, ${primaryColor}20)`}
-                                  borderRadius="full"
-                                  transform="translate(30px, -30px)"
-                                />
-                                
-                                <HStack position="relative" zIndex={1}>
-                                  <Box
-                                    p={3}
-                                    borderRadius="xl"
-                                    bg={secondaryColor}
-                                    color="white"
-                                  >
-                                    <Icon as={FiCalendar} boxSize={6} />
-                                  </Box>
-                                  <Box>
-                                    <Text fontSize="xl" fontWeight="bold" color={textColor}>
-                                      {existingEvents.length} evenimente programate
-                                    </Text>
-                                    <Text fontSize="sm" color={mutedTextColor} fontWeight="medium">
-                                      pentru {startDate.toLocaleDateString('ro-RO', { 
-                                        weekday: 'long', 
-                                        day: 'numeric', 
-                                        month: 'long', 
-                                        year: 'numeric' 
-                                      })}
-                                    </Text>
-                                  </Box>
-                                </HStack>
-                              </Box>
-                              
-                              <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
-                                {existingEvents.map((event, index) => (
-                                  <Card 
-                                    key={event.id || index} 
-                                    bg={cardBgColor}
-                                    borderRadius="2xl"
-                                    border="2px solid"
-                                    borderColor={borderColor}
-                                    overflow="hidden"
-                                    transition="all 0.3s"
-                                    _hover={{
-                                      transform: 'translateY(-8px) scale(1.02)',
-                                      boxShadow: '2xl',
-                                      borderColor: primaryColor,
-                                    }}
-                                    cursor="pointer"
-                                    animation={`${fadeInUp} 0.5s ease-out ${index * 0.1}s both`}
-                                  >
-                                    <CardBody p={6}>
-                                      <VStack align="start" spacing={4}>
-                                        {/* Header cu tip și timp - modernizat */}
-                                        <HStack justify="space-between" w="full">
-                                          <Badge 
-                                            colorScheme={getEventTypeColor(event.type)}
-                                            fontSize="xs"
-                                            px={4}
-                                            py={2}
-                                            borderRadius="full"
-                                            fontWeight="bold"
-                                            textTransform="uppercase"
-                                            letterSpacing="wide"
-                                          >
-                                            {event.type}
-                                          </Badge>
-                                          <HStack spacing={2}>
-                                            <Box
-                                              p={1}
-                                              borderRadius="full"
-                                              bg={secondaryColor}
-                                              color="white"
-                                            >
-                                              <Icon as={FiClock} boxSize={3} />
-                                            </Box>
-                                            <Text fontSize="sm" color={mutedTextColor} fontWeight="bold">
-                                              {formatTime(event.start)} - {formatTime(event.end)}
-                                            </Text>
-                                          </HStack>
-                                        </HStack>
-
-                                        {/* Titlu și descriere - modernizat */}
-                                        <Box>
-                                          <Text 
-                                            fontSize="lg" 
-                                            fontWeight="bold" 
-                                            mb={2} 
-                                            lineHeight="1.3"
-                                            color={textColor}
-                                          >
-                                            {event.title}
-                                          </Text>
-                                          {event.description && (
-                                            <Text 
-                                              fontSize="sm" 
-                                              color={mutedTextColor} 
-                                              fontWeight="medium" 
-                                              lineHeight="1.5"
-                                            >
-                                              {event.description.length > 100 
-                                                ? `${event.description.substring(0, 100)}...` 
-                                                : event.description
-                                              }
-                                            </Text>
-                                          )}
-                                        </Box>
-
-                                        {/* Detalii suplimentare - modernizat */}
-                                        <VStack align="start" spacing={3} w="full">
-                                          {/* Locație */}
-                                          {event.location && (
-                                            <HStack>
-                                              <Box
-                                                p={1}
-                                                borderRadius="full"
-                                                bg="orange.100"
-                                                color="orange.600"
-                                              >
-                                                <Icon as={FiMapPin} boxSize={3} />
-                                              </Box>
-                                              <Text fontSize="sm" color={mutedTextColor} fontWeight="medium">
-                                                {event.location.length > 50 
-                                                  ? `${event.location.substring(0, 50)}...` 
-                                                  : event.location
-                                                }
-                                              </Text>
-                                            </HStack>
-                                          )}
-                                          
-                                          {/* Vehicul cu detalii */}
-                                          {event.vehicle && event.vehicle.id && (
-                                            <HStack>
-                                              <Box
-                                                p={1}
-                                                borderRadius="full"
-                                                bg="green.100"
-                                                color="green.600"
-                                              >
-                                                <Icon as={FiTruck} boxSize={3} />
-                                              </Box>
-                                              <VStack align="start" spacing={0}>
-                                                <Text fontSize="sm" color={mutedTextColor} fontWeight="bold">
-                                                  {event.vehicle.brand} {event.vehicle.model}
-                                                </Text>
-                                                <Text fontSize="xs" color={mutedTextColor} fontWeight="medium">
-                                                  {event.vehicle.registration_number}
-                                                </Text>
-                                              </VStack>
-                                            </HStack>
-                                          )}
-
-                                          {/* Personal asignat */}
-                                          {event.assignmentsCount && event.assignmentsCount > 0 && (
-                                            <HStack>
-                                              <Box
-                                                p={1}
-                                                borderRadius="full"
-                                                bg="purple.100"
-                                                color="purple.600"
-                                              >
-                                                <Icon as={FiUser} boxSize={3} />
-                                              </Box>
-                                              <Text fontSize="sm" color={mutedTextColor} fontWeight="medium">
-                                                {event.assignmentsCount} {event.assignmentsCount === 1 ? 'persoană asignată' : 'persoane asignate'}
-                                              </Text>
-                                            </HStack>
-                                          )}
-                                        </VStack>
-                                      </VStack>
-                                    </CardBody>
-                                  </Card>
-                                ))}
-                              </SimpleGrid>
-                            </>
-                          )}
-                        </VStack>
-                      </SlideFade>
+                    <TabPanel px={0} py={4}>
+                      {renderDayEventsPanel()}
                     </TabPanel>
                   </TabPanels>
                 </Tabs>
               </VStack>
             )}
-          </ScaleFade>
         </ModalBody>
 
-        {/* Footer modernizat */}
-        <ModalFooter 
-          borderTopWidth="1px" 
-          borderColor={borderColor}
-          bg={cardBgColor}
-          py={6}
-        >
-          <HStack spacing={4} w="full" justify="space-between">
-            <Button 
-              variant="outline" 
+        <ModalFooter borderTopWidth="1px" borderColor={borderColor} py={3}>
+          <HStack spacing={3} w="full" justify="flex-end">
+            <Button
+              variant="ghost"
               onClick={() => { onClose(); resetForm(); }}
-              size="lg"
-              borderRadius="xl"
-              borderWidth="2px"
-              _hover={{
-                transform: 'translateX(-4px)',
-                boxShadow: 'lg',
-              }}
-              transition="all 0.3s"
-              leftIcon={<Icon as={FiX} />}
+              size="sm"
             >
               Anulare
             </Button>
-            
             <Button
-              colorScheme="teal"
+              colorScheme="blue"
               onClick={handleSubmit}
               isDisabled={isSubmitDisabled()}
-              size="lg"
-              borderRadius="xl"
-              px={10}
-              py={7}
-              fontWeight="bold"
-              fontSize="xl"
-              bg={`linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`}
-              color="white"
-              _hover={{ 
-                transform: 'translateY(-3px) scale(1.05)', 
-                boxShadow: '2xl',
-                bg: `linear-gradient(135deg, ${secondaryColor}, ${primaryColor})`,
-              }}
-              _active={{
-                transform: 'translateY(-1px) scale(1.02)',
-              }}
-              _disabled={{
-                opacity: 0.6,
-                cursor: 'not-allowed',
-                transform: 'none',
-              }}
-              transition="all 0.3s"
-              rightIcon={<Icon as={editMode ? FiCheck : FiPlus} boxSize={6} />}
-              position="relative"
-              overflow="hidden"
-              boxShadow="lg"
+              size="sm"
+              rightIcon={<Icon as={editMode ? FiCheck : FiPlus} />}
             >
-              {/* Shimmer effect */}
-              <Box
-                position="absolute"
-                top={0}
-                left={0}
-                w="full"
-                h="full"
-                bg="white"
-                opacity={0.3}
-                transform="skewX(-20deg) translateX(-100%)"
-                animation={`${shimmer} 2s infinite`}
-              />
-              <Text position="relative" zIndex={1}>
-                {editMode ? 'Salvează Modificările' : 'Creează Eveniment'}
-              </Text>
+              {editMode ? 'Salvează' : 'Creează eveniment'}
             </Button>
           </HStack>
         </ModalFooter>

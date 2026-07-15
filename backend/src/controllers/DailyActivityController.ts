@@ -99,13 +99,25 @@ export const DailyActivityController = {
         }
     },
 
-    // Finalizează fișa activității
+    // Finalizează fișa activității pentru luna și vehiculul selectat
     finalizeDailyActivity: async (req: Request, res: Response) => {
         try {
             const userId = (req as any).user.id;
-            const { date } = req.body;
+            const { year, month, vehicleId } = req.body;
 
-            await DailyActivityService.finalizeDailyActivity(date, userId);
+            if (!year || !month || !vehicleId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'year, month și vehicleId sunt obligatorii',
+                });
+            }
+
+            await DailyActivityService.finalizeMonthlyActivity(
+                Number(year),
+                String(month),
+                Number(vehicleId),
+                userId
+            );
             
             res.json({
                 success: true,
@@ -117,6 +129,40 @@ export const DailyActivityController = {
                 success: false,
                 message: 'Error finalizing daily activity',
                 error: error instanceof Error ? error.message : 'Unknown error'
+            });
+        }
+    },
+
+    // Redeschide luna pentru editare
+    reopenDailyActivity: async (req: Request, res: Response) => {
+        try {
+            const userId = (req as any).user.id;
+            const { year, month, vehicleId } = req.body;
+
+            if (!year || !month || !vehicleId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'year, month și vehicleId sunt obligatorii',
+                });
+            }
+
+            await DailyActivityService.reopenMonthlyActivity(
+                Number(year),
+                String(month),
+                Number(vehicleId),
+                userId
+            );
+
+            res.json({
+                success: true,
+                message: 'Daily activity reopened successfully',
+            });
+        } catch (error) {
+            console.error('Error reopening daily activity:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Error reopening daily activity',
+                error: error instanceof Error ? error.message : 'Unknown error',
             });
         }
     },

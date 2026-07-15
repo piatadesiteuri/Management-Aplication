@@ -7,11 +7,48 @@ export interface Notification {
   type: string;
   status: 'unread' | 'read';
   created_at: string;
+  data?: string | Record<string, unknown>;
+  task_id?: number;
+  request_id?: number;
+  event_id?: number;
+}
+
+function normalizeNotification(raw: Record<string, unknown>): Notification {
+  let parsed: Record<string, unknown> = {};
+  if (raw.data) {
+    try {
+      parsed = typeof raw.data === 'string'
+        ? JSON.parse(raw.data)
+        : (raw.data as Record<string, unknown>);
+    } catch {
+      parsed = {};
+    }
+  }
+
+  return {
+    ...(raw as Notification),
+    task_id: (raw.task_id as number | undefined) ?? (parsed.task_id as number | undefined),
+    request_id: (raw.request_id as number | undefined) ?? (parsed.request_id as number | undefined),
+    event_id:
+      (raw.event_id as number | undefined) ??
+      (parsed.transport_event_id as number | undefined) ??
+      (parsed.event_id as number | undefined) ??
+      (parsed.entity_type === 'EVENT' ? (parsed.entity_id as number | undefined) : undefined),
+  };
+}
+
+export async function fetchInternalNotesInboxCount(): Promise<number> {
+  try {
+    const res = await api.get('/tasks/inbox-count');
+    return Number(res.data?.count || 0);
+  } catch {
+    return 0;
+  }
 }
 
 export async function fetchNotifications(): Promise<Notification[]> {
   const res = await api.get('/notifications');
-  return res.data;
+  return (res.data || []).map((item: Record<string, unknown>) => normalizeNotification(item));
 }
 
 export async function markAllAsRead() {

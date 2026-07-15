@@ -339,18 +339,27 @@ export default function TasksPageNew() {
     try {
       setLoading(true);
       const token = localStorage.getItem('jwt_token');
-      const response = await fetch('/api/tasks', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const headers = { Authorization: `Bearer ${token}` };
+      const [receivedRes, sentRes] = await Promise.all([
+        fetch('/api/tasks/my-tasks?limit=200', { headers }),
+        fetch('/api/tasks/created-by-me?limit=200', { headers }),
+      ]);
 
-      if (response.ok) {
+      const userMap = buildUserMap(preloadedUsers || users);
+      const merged = new Map<number, ReturnType<typeof normalizeTasks>[number]>();
+
+      for (const response of [receivedRes, sentRes]) {
+        if (!response.ok) continue;
         const data = await response.json();
         const rawTasks = Array.isArray(data) ? data : Array.isArray(data?.tasks) ? data.tasks : [];
-        const userMap = buildUserMap(preloadedUsers || users);
-        setTasks(normalizeTasks(rawTasks, userMap));
-      } else {
-        setTasks([]);
+        for (const task of normalizeTasks(rawTasks, userMap)) {
+          merged.set(task.id, task);
+        }
       }
+
+      setTasks(Array.from(merged.values()).sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      ));
     } catch (error) {
       console.error('Error loading notes:', error);
       toast({
@@ -444,6 +453,7 @@ export default function TasksPageNew() {
       setTaskForm(initialTaskForm);
       onCreateClose();
       await loadTasks(users);
+      window.dispatchEvent(new CustomEvent('internalNoteUpdate'));
     } catch (error) {
       console.error('Error creating note:', error);
       toast({
@@ -484,6 +494,7 @@ export default function TasksPageNew() {
       if (selectedTask?.id === taskId) {
         setSelectedTask({ ...selectedTask, status: newStatus });
       }
+      window.dispatchEvent(new CustomEvent('internalNoteUpdate'));
     } catch (error) {
       console.error('Error updating note status:', error);
       toast({
@@ -1004,6 +1015,15 @@ export default function TasksPageNew() {
               </SimpleGrid>
 
               <Divider />
+
+              {selectedTask && (selectedTask.status === 'COMPLETED' || selectedTask.status === 'CANCELLED') &&
+                (currentUserId === Number(selectedTask.assigned_to) || currentUserId === Number(selectedTask.assigned_by)) && (
+                <HStack spacing={2} flexWrap="wrap">
+                  <Button leftIcon={<FiPlay />} colorScheme="blue" size="sm" onClick={() => handleUpdateStatus(selectedTask.id, 'IN_PROGRESS')}>
+                    Redeschide nota
+                  </Button>
+                </HStack>
+              )}
 
               {selectedTask && currentUserId === Number(selectedTask.assigned_to) && selectedTask.status !== 'COMPLETED' && selectedTask.status !== 'CANCELLED' && (
                 <HStack spacing={2} flexWrap="wrap">

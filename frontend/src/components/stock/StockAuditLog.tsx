@@ -45,7 +45,7 @@ import {
   FiClock,
   FiFilter,
   FiDownload,
-  FiRefreshCw
+  FiRefreshCw,
 } from 'react-icons/fi';
 import { SupplyService } from '../../services/supply/SupplyService';
 import { Product } from '../../types/supply';
@@ -123,6 +123,7 @@ export default function StockAuditLog() {
   const supplyService = new SupplyService();
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
+  const subtitleColor = useColorModeValue('gray.600', 'gray.300');
 
   useEffect(() => {
     loadAuditLog();
@@ -266,7 +267,7 @@ export default function StockAuditLog() {
           <Text fontSize="2xl" fontWeight="bold" mb={2}>
             Audit Stoc - Istoricul Modificărilor
           </Text>
-          <Text color="gray.600" fontSize="lg">
+          <Text color={subtitleColor} fontSize="lg">
             Toate modificările de stoc înregistrate în sistem
           </Text>
         </Box>

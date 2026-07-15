@@ -54,6 +54,8 @@ export interface Product {
     expiry_months?: number;
     storage_conditions?: string;
     current_stock?: number;
+    pending_delivery?: number;
+    next_delivery_date?: string | null;
     stock_status?: StockStatus;
     is_active: boolean;
     created_at: string;

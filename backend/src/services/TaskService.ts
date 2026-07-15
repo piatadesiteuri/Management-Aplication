@@ -161,6 +161,8 @@ export class TaskService {
       if (!task) {
         throw new Error('Failed to create task');
       }
+
+      await this.sendTaskNotification(taskId, 'ASSIGNED', userId);
       return task;
     } catch (error) {
       await connection.rollback();
@@ -230,26 +232,47 @@ export class TaskService {
     const offset = (page - 1) * limit;
 
     try {
-      console.log('TaskService.getTasks: Starting...');
-      console.log('TaskService.getTasks: Filters:', filters);
-      console.log('TaskService.getTasks: Page:', page, 'Limit:', limit, 'Offset:', offset);
+      const conditions: string[] = [];
+      const params: unknown[] = [];
 
-      // Count total
-      console.log('TaskService.getTasks: Executing count query...');
+      if (filters.assigned_to !== undefined) {
+        conditions.push('assigned_to = ?');
+        params.push(filters.assigned_to);
+      }
+      if (filters.assigned_by !== undefined) {
+        conditions.push('assigned_by = ?');
+        params.push(filters.assigned_by);
+      }
+      if (filters.department_id !== undefined) {
+        conditions.push('department_id = ?');
+        params.push(filters.department_id);
+      }
+      if (filters.status) {
+        conditions.push('status = ?');
+        params.push(filters.status);
+      }
+      if (filters.priority) {
+        conditions.push('priority = ?');
+        params.push(filters.priority);
+      }
+      if (filters.search) {
+        conditions.push('(title LIKE ? OR description LIKE ?)');
+        const term = `%${filters.search}%`;
+        params.push(term, term);
+      }
+
+      const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
       const [countRows] = await pool.execute(
-        `SELECT COUNT(*) as total FROM tasks`
+        `SELECT COUNT(*) as total FROM tasks ${whereClause}`,
+        params
       );
       const total = (countRows as any[])[0].total;
-      console.log('TaskService.getTasks: Count result:', total);
 
-      // Get tasks - simplified without JOINs
-      console.log('TaskService.getTasks: Executing main query...');
       const [rows] = await pool.execute(
-        `SELECT * FROM tasks ORDER BY created_at DESC LIMIT ${parseInt(offset.toString())}, ${parseInt(limit.toString())}`
+        `SELECT * FROM tasks ${whereClause} ORDER BY created_at DESC LIMIT ${parseInt(offset.toString())}, ${parseInt(limit.toString())}`,
+        params
       );
-
-      console.log('TaskService.getTasks: Query completed successfully');
-      console.log('TaskService.getTasks: Rows count:', (rows as any[]).length);
 
       return {
         tasks: rows as Task[],
@@ -309,9 +332,10 @@ export class TaskService {
         updateFields.push('status = ?');
         updateParams.push(updates.status);
         
-        // Dacă status-ul devine COMPLETED, setează completed_at
         if (updates.status === 'COMPLETED') {
           updateFields.push('completed_at = NOW()');
+        } else if (currentTask.status === 'COMPLETED' || currentTask.status === 'CANCELLED') {
+          updateFields.push('completed_at = NULL');
         }
       }
 
@@ -363,6 +387,7 @@ export class TaskService {
       if (updates.status && updates.status !== currentTask.status) {
         console.log('📝 Adding status change to history...');
         await this.addTaskHistory(taskId, userId, 'STATUS_CHANGED', currentTask.status, updates.status);
+        await this.sendTaskNotification(taskId, 'STATUS_CHANGED', userId);
       }
 
       if (updates.priority && updates.priority !== currentTask.priority) {
@@ -373,7 +398,7 @@ export class TaskService {
       if (updates.assigned_to && updates.assigned_to !== currentTask.assigned_to) {
         console.log('📝 Adding assignment change to history...');
         await this.addTaskHistory(taskId, userId, 'ASSIGNED', currentTask.assigned_to.toString(), updates.assigned_to.toString());
-        await this.sendTaskNotification(taskId, 'REASSIGNED');
+        await this.sendTaskNotification(taskId, 'REASSIGNED', userId);
       }
 
       console.log('🔍 Getting updated task...');
@@ -435,7 +460,7 @@ export class TaskService {
     await this.addTaskHistory(taskId, userId, 'COMMENTED', undefined, comment.substring(0, 100));
 
     // Trimite notificare
-    await this.sendTaskNotification(taskId, 'COMMENTED');
+    await this.sendTaskNotification(taskId, 'COMMENTED', userId);
 
     const commentData = await this.getCommentById(commentId);
     if (!commentData) {
@@ -605,38 +630,99 @@ export class TaskService {
   }
 
   /**
-   * Trimite notificare pentru task
+   * Număr note interne nefinalizate primite de utilizator
    */
-  private async sendTaskNotification(taskId: number, type: string): Promise<void> {
+  async getInboxCount(userId: number): Promise<number> {
+    const [rows] = await pool.execute(
+      `SELECT COUNT(*) as count
+       FROM tasks
+       WHERE assigned_to = ? AND status IN ('PENDING', 'IN_PROGRESS')`,
+      [userId]
+    );
+    return Number((rows as any[])[0]?.count || 0);
+  }
+
+  /**
+   * Trimite notificare pentru notă internă (DB + WebSocket)
+   */
+  private async sendTaskNotification(
+    taskId: number,
+    type: string,
+    actorUserId?: number
+  ): Promise<void> {
     try {
       const task = await this.getTaskById(taskId);
       if (!task) return;
 
+      const { sendNotification } = require('../app');
+      const senderName = task.assigned_by_user
+        ? `${task.assigned_by_user.last_name || ''} ${task.assigned_by_user.first_name || ''}`.trim()
+        : 'Un coleg';
+      const recipientName = task.assigned_to_user
+        ? `${task.assigned_to_user.last_name || ''} ${task.assigned_to_user.first_name || ''}`.trim()
+        : 'Destinatarul';
+
+      let targetUserId: number | null = null;
       let message = '';
+
       switch (type) {
         case 'ASSIGNED':
-          message = `Ai fost asignat la task-ul "${task.title}"`;
+          targetUserId = task.assigned_to;
+          message = `📝 Notă internă nouă de la ${senderName}: ${task.title}`;
           break;
         case 'REASSIGNED':
-          message = `Task-ul "${task.title}" ți-a fost realocat`;
+          targetUserId = task.assigned_to;
+          message = `📝 Ți-a fost alocată nota „${task.title}”`;
           break;
         case 'COMMENTED':
-          message = `S-a adăugat un comentariu la task-ul "${task.title}"`;
+          targetUserId = actorUserId === task.assigned_to ? task.assigned_by : task.assigned_to;
+          message = `💬 Răspuns nou la nota „${task.title}”`;
           break;
-        case 'STATUS_CHANGED':
-          message = `Statusul task-ului "${task.title}" a fost modificat`;
+        case 'STATUS_CHANGED': {
+          targetUserId = actorUserId === task.assigned_to ? task.assigned_by : task.assigned_to;
+          const statusLabel: Record<string, string> = {
+            PENDING: 'nouă',
+            IN_PROGRESS: 'în lucru',
+            COMPLETED: 'rezolvată',
+            CANCELLED: 'închisă',
+          };
+          const actorName = actorUserId === task.assigned_to ? recipientName : senderName;
+          message = `📋 Nota „${task.title}” marcată ${statusLabel[task.status] || task.status} de ${actorName}`;
           break;
+        }
         default:
-          message = `Actualizare pentru task-ul "${task.title}"`;
+          targetUserId = task.assigned_to;
+          message = `📋 Actualizare notă internă: ${task.title}`;
       }
 
-      // Log activitatea
+      if (!targetUserId || (actorUserId && targetUserId === actorUserId)) {
+        return;
+      }
+
+      await pool.execute(
+        `INSERT INTO notifications (user_id, type, message, status, title, data, created_at)
+         VALUES (?, 'INTERNAL_NOTE', ?, 'unread', ?, ?, NOW())`,
+        [
+          targetUserId,
+          message.substring(0, 255),
+          task.title.substring(0, 255),
+          JSON.stringify({ task_id: task.id }),
+        ]
+      );
+
+      sendNotification(targetUserId, {
+        type: 'INTERNAL_NOTE',
+        message,
+        task_id: task.id,
+        title: task.title,
+      });
+
       await ActivityLogService.logTaskAction(
-        task.assigned_to,
+        targetUserId,
         taskId,
         type,
         message,
-        '192.168.1.100'
+        '127.0.0.1'
       );
     } catch (error) {
       console.error('Error sending task notification:', error);

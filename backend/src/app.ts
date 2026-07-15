@@ -47,10 +47,29 @@ config();
 const app: Express = express();
 // Default-uri pentru instanța Brașov (evită conflict cu alte proiecte)
 const port = process.env.PORT || 3100;
+const frontendPort = process.env.FRONTEND_PORT || '5174';
+
+const configuredOrigins = (process.env.FRONTEND_URL || `http://localhost:${frontendPort}`)
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const isDevOriginAllowed = (origin: string) => {
+  if (process.env.NODE_ENV === 'production') return false;
+  return new RegExp(
+    `^https?:\\/\\/(localhost|127\\.0\\.0\\.1|192\\.168\\.\\d+\\.\\d+|10\\.\\d+\\.\\d+\\.\\d+|172\\.(1[6-9]|2\\d|3[0-1])\\.\\d+\\.\\d+):${frontendPort}$`
+  ).test(origin);
+};
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5174',
+  origin: (origin, callback) => {
+    if (!origin || configuredOrigins.includes(origin) || isDevOriginAllowed(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error(`Not allowed by CORS: ${origin}`));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
@@ -264,8 +283,10 @@ async function initializeServices() {
   }
 }
 
-// Pornește serverul
-server.listen(port, async () => {
+// Pornește serverul (0.0.0.0 = accesibil și pe IP din rețea, nu doar localhost)
+server.listen(Number(port), '0.0.0.0', async () => {
   console.log(`🚀 Serverul rulează pe portul ${port}`);
+  console.log(`   Local:   http://localhost:${port}`);
+  console.log(`   Rețea:   http://<IP-ul-tău>:${port}`);
   await initializeServices();
 });

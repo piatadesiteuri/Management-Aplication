@@ -12,6 +12,7 @@ router.use(authenticate);
 
 // Rute pentru task-uri
 router.get('/', TaskController.getAllTasks);
+router.get('/inbox-count', TaskController.getInboxCount);
 router.get('/stats', TaskController.getTaskStats);
 router.get('/my-tasks', TaskController.getMyTasks);
 router.get('/created-by-me', TaskController.getTasksCreatedByMe);

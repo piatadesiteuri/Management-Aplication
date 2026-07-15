@@ -325,6 +325,16 @@ export default function EventApprovalWorkflow({
   const loadApprovalData = async () => {
     try {
       setLoading(true);
+
+      const transportTypes = ['TRANSPORT_DELIVERY', 'TRANSPORT_PICKUP', 'SUPPLY_ORDER'];
+      if (transportTypes.includes(eventType)) {
+        const isApproved = approvalStatus === 'APPROVED';
+        setApprovalRequests([]);
+        setApprovalHistory([]);
+        setCurrentStep(isApproved ? workflow.length : 0);
+        setActiveStep(isApproved ? workflow.length : 0);
+        return;
+      }
       
       // TODO: Implementare API pentru încărcarea datelor de aprobare
       // Pentru moment folosim mock data
@@ -728,9 +738,15 @@ export default function EventApprovalWorkflow({
                     {approvalRequests.length === 0 ? (
                       <Alert status="info">
                         <AlertIcon />
-                        <AlertTitle>Nicio cerere de aprobare!</AlertTitle>
+                        <AlertTitle>
+                          {['TRANSPORT_DELIVERY', 'TRANSPORT_PICKUP', 'SUPPLY_ORDER'].includes(eventType)
+                            ? 'Livrare aprobată automat'
+                            : 'Nicio cerere de aprobare!'}
+                        </AlertTitle>
                         <AlertDescription>
-                          Nu există cereri de aprobare pentru acest eveniment.
+                          {['TRANSPORT_DELIVERY', 'TRANSPORT_PICKUP', 'SUPPLY_ORDER'].includes(eventType)
+                            ? 'Evenimentele de transport sunt create și aprobate automat din cererile de materiale. Nu necesită workflow de aprobare separat.'
+                            : 'Nu există cereri de aprobare pentru acest eveniment.'}
                         </AlertDescription>
                       </Alert>
                     ) : (

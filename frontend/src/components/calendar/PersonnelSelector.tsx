@@ -220,403 +220,109 @@ export default function PersonnelSelector({
 
   return (
     <FormControl>
-      <FormLabel>
-        <HStack spacing={3}>
-          <Box
-            p={2}
-            borderRadius="lg"
-            bg={`linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`}
-            color="white"
-            animation={`${pulseGlow} 2s infinite`}
-          >
-            <Icon as={FiUsers} boxSize={5} />
-          </Box>
-          <Text fontWeight="bold" fontSize="lg">Personal Asignat</Text>
-          <Badge 
-            colorScheme="blue" 
-            variant="solid"
-            px={3}
-            py={1}
-            borderRadius="full"
-            fontSize="sm"
-            fontWeight="bold"
-          >
-            {selectedPersonnel.length} selectați
+      <FormLabel fontSize="sm" fontWeight="medium" mb={2}>
+        Personal asignat
+        {selectedPersonnel.length > 0 && (
+          <Badge ml={2} colorScheme="blue" variant="subtle" fontSize="xs">
+            {selectedPersonnel.length}
           </Badge>
-        </HStack>
+        )}
       </FormLabel>
 
-      <VStack spacing={6} align="stretch">
-        {/* Statistici rapide - modernizate */}
-        <SimpleGrid columns={4} spacing={3}>
-          <Card 
-            size="sm" 
-            bg={bgColor}
-            border="1px solid" 
-            borderColor={borderColor}
-            borderRadius="xl"
-            _hover={{
-              transform: 'translateY(-2px)',
-              boxShadow: 'lg',
-              borderColor: primaryColor,
-            }}
-            transition="all 0.3s"
-          >
-            <CardBody p={4} textAlign="center">
-              <VStack spacing={2}>
-                <Box
-                  p={2}
-                  borderRadius="full"
-                  bg={`${primaryColor}10`}
-                  color={primaryColor}
-                >
-                  <Icon as={FiUsers} boxSize={4} />
-                </Box>
-                <Text fontSize="2xl" fontWeight="bold" color={textColor}>
-                {stats.available}
-              </Text>
-                <Text fontSize="xs" color={mutedTextColor} fontWeight="medium" textTransform="uppercase" letterSpacing="wide">
-                Disponibili
-              </Text>
-              </VStack>
-            </CardBody>
-          </Card>
-          
-          <Card 
-            size="sm" 
-            bg={bgColor}
-            border="1px solid" 
-            borderColor={borderColor}
-            borderRadius="xl"
-            _hover={{
-              transform: 'translateY(-2px)',
-              boxShadow: 'lg',
-              borderColor: 'orange.300',
-            }}
-            transition="all 0.3s"
-          >
-            <CardBody p={4} textAlign="center">
-              <VStack spacing={2}>
-                <Box
-                  p={2}
-                  borderRadius="full"
-                  bg="orange.100"
-                  color="orange.500"
-                >
-                  <Icon as={FiClock} boxSize={4} />
-                </Box>
-                <Text fontSize="2xl" fontWeight="bold" color={textColor}>
-                {stats.unavailable}
-              </Text>
-                <Text fontSize="xs" color={mutedTextColor} fontWeight="medium" textTransform="uppercase" letterSpacing="wide">
-                Ocupați
-              </Text>
-              </VStack>
-            </CardBody>
-          </Card>
-          
-          <Card 
-            size="sm" 
-            bg={bgColor}
-            border="1px solid" 
-            borderColor={borderColor}
-            borderRadius="xl"
-            _hover={{
-              transform: 'translateY(-2px)',
-              boxShadow: 'lg',
-              borderColor: secondaryColor,
-            }}
-            transition="all 0.3s"
-          >
-            <CardBody p={4} textAlign="center">
-              <VStack spacing={2}>
-                <Box
-                  p={2}
-                  borderRadius="full"
-                  bg={`${secondaryColor}10`}
-                  color={secondaryColor}
-                >
-                  <Icon as={FiUserCheck} boxSize={4} />
-                </Box>
-                <Text fontSize="2xl" fontWeight="bold" color={textColor}>
-                {stats.assigned}
-              </Text>
-                <Text fontSize="xs" color={mutedTextColor} fontWeight="medium" textTransform="uppercase" letterSpacing="wide">
-                Asignați
-              </Text>
-              </VStack>
-            </CardBody>
-          </Card>
+      <VStack spacing={3} align="stretch">
+        <HStack spacing={4} fontSize="xs" color={mutedTextColor} flexWrap="wrap">
+          <Text>{stats.available} disponibili</Text>
+          <Text>·</Text>
+          <Text>{stats.unavailable} ocupați</Text>
+          <Text>·</Text>
+          <Text>{stats.assigned} asignați</Text>
+        </HStack>
 
-          <Card 
-            size="sm" 
-            bg={bgColor}
-            border="1px solid" 
-            borderColor={borderColor}
-            borderRadius="xl"
-            _hover={{
-              transform: 'translateY(-2px)',
-              boxShadow: 'lg',
-              borderColor: mutedTextColor,
-            }}
-            transition="all 0.3s"
-          >
-            <CardBody p={4} textAlign="center">
-              <VStack spacing={2}>
-                <Box
-                  p={2}
-                  borderRadius="full"
-                  bg={`${mutedTextColor}20`}
-                  color={mutedTextColor}
-                >
-                  <Icon as={FiDatabase} boxSize={4} />
-                </Box>
-                <Text fontSize="2xl" fontWeight="bold" color={textColor}>
-                {stats.total}
-              </Text>
-                <Text fontSize="xs" color={mutedTextColor} fontWeight="medium" textTransform="uppercase" letterSpacing="wide">
-                Total
-              </Text>
-              </VStack>
-            </CardBody>
-          </Card>
-        </SimpleGrid>
-
-        {/* Buton pentru deschiderea modalului */}
-            <Button
-              leftIcon={<FiPlus />}
+        <Button
+          leftIcon={<FiPlus />}
           onClick={onOpen}
           isDisabled={isDisabled || loading}
-          size="lg"
-          borderRadius="xl"
-          bg={useColorModeValue('blue.500', 'blue.400')}
-          color="white"
-          border="2px solid"
-          borderColor={useColorModeValue('blue.600', 'blue.300')}
-          fontWeight="bold"
-          fontSize="md"
-          px={8}
-          py={6}
-          _hover={{
-            transform: 'translateY(-3px)',
-            boxShadow: 'xl',
-            bg: useColorModeValue('blue.600', 'blue.500'),
-            borderColor: useColorModeValue('blue.700', 'blue.400'),
-          }}
-          _active={{
-            transform: 'translateY(-1px)',
-            bg: useColorModeValue('blue.700', 'blue.600'),
-          }}
-          _disabled={{
-            opacity: 0.6,
-            cursor: 'not-allowed',
-            transform: 'none',
-            bg: useColorModeValue('gray.400', 'gray.600'),
-            borderColor: useColorModeValue('gray.500', 'gray.500'),
-          }}
-          transition="all 0.3s"
-          position="relative"
-          overflow="hidden"
-          boxShadow="lg"
-            >
-          {loading ? 'Se încarcă...' : '+ Selectează Personal'}
-          {loading && <Spinner size="sm" ml={2} color="white" />}
-            </Button>
+          size="sm"
+          variant="outline"
+          colorScheme="blue"
+          alignSelf="flex-start"
+        >
+          {loading ? 'Se încarcă...' : 'Selectează personal'}
+          {loading && <Spinner size="sm" ml={2} />}
+        </Button>
 
-        {/* Personal asignat - modernizat */}
+        {/* Personal asignat */}
         {selectedPersonnel.length > 0 && (
-          <ScaleFade in={true}>
-            <Card
-              border="2px solid"
-              borderColor={borderColor}
-              borderRadius="2xl"
-              overflow="hidden"
-              boxShadow="lg"
-            >
-              <CardBody p={6}>
-                <VStack spacing={4} align="stretch">
-                  <HStack justify="space-between">
-                    <HStack spacing={3}>
-                      <Box
-                        p={2}
-                        borderRadius="lg"
-                        bg="blue.100"
-                        color="blue.600"
-                      >
-                        <Icon as={FiUserCheck} boxSize={5} />
-                      </Box>
-                      <Text fontWeight="bold" fontSize="lg">
-                        Personal Asignat ({selectedPersonnel.length})
-                      </Text>
-                    </HStack>
-                    <AvatarGroup size="sm" max={3}>
-                      {getSelectedPersonnelInfo().map((person) => (
-                        <Avatar 
-                          key={person.id} 
-                          name={person.fullName}
-                          bg={person.isAvailable ? 'green.500' : 'red.500'}
-                        />
-                      ))}
-                    </AvatarGroup>
-                  </HStack>
-                  
-                <VStack spacing={3} align="stretch">
-                  {getSelectedPersonnelInfo().map((person, index) => (
-                    <Box key={person.id}>
-                        <HStack 
-                          justify="space-between" 
-                          p={4} 
-                          bg={bgColor} 
-                          borderRadius="xl" 
-                          border="1px solid" 
-                          borderColor={person.isAvailable ? 'green.200' : 'red.200'}
-                          _hover={{
-                            transform: 'translateX(4px)',
-                            boxShadow: 'md',
-                          }}
-                          transition="all 0.3s"
-                        >
-                          <HStack spacing={4}>
-                            <Avatar 
-                              name={person.fullName}
-                              size="md"
-                              bg={person.isAvailable ? 'green.500' : 'red.500'}
-                          />
-                            <VStack align="start" spacing={1}>
-                              <Text fontWeight="bold" fontSize="lg">
-                                {person.fullName}
-                            </Text>
-                              <HStack spacing={2} color="gray.600">
-                                <HStack spacing={1}>
-                                  <Icon as={FiMail} boxSize={3} />
-                                  <Text fontSize="sm">{person.email}</Text>
-                                </HStack>
-                                <HStack spacing={1}>
-                                  <Icon as={FiMapPin} boxSize={3} />
-                                  <Text fontSize="sm">{person.departmentName}</Text>
-                                </HStack>
-                              </HStack>
-                            {person.roles.length > 0 && (
-                              <HStack spacing={1} mt={1}>
-                                {person.roles.slice(0, 2).map(role => (
-                                    <Badge key={role} size="sm" colorScheme="purple" variant="solid">
-                                    {role}
-                                  </Badge>
-                                ))}
-                                {person.roles.length > 2 && (
-                                    <Badge size="sm" colorScheme="gray" variant="solid">
-                                    +{person.roles.length - 2}
-                                  </Badge>
-                                )}
-                              </HStack>
-                            )}
-                          </VStack>
-                        </HStack>
-                        
-                        <HStack spacing={2}>
-                          {!person.isAvailable && (
-                            <Tooltip label={person.conflictReason} placement="top">
-                                <Box
-                                  p={2}
-                                  borderRadius="full"
-                                  bg="orange.100"
-                                  color="orange.600"
-                                >
-                                  <Icon as={FiInfo} boxSize={4} />
-                                </Box>
-                            </Tooltip>
-                          )}
-                          <IconButton
-                            aria-label="Elimină persoana"
-                            icon={<FiTrash2 />}
-                              size="md"
-                            colorScheme="red"
-                            variant="ghost"
-                            onClick={() => handleRemovePersonnel(person.id)}
-                            isDisabled={isDisabled}
-                              _hover={{
-                                transform: 'scale(1.1)',
-                                bg: 'red.100',
-                              }}
-                              transition="all 0.2s"
-                          />
-                        </HStack>
-                      </HStack>
-                      {!person.isAvailable && person.conflictReason && (
-                          <Alert status="warning" size="sm" mt={3} borderRadius="xl">
-                          <AlertIcon />
-                          <Box>
-                              <Text fontSize="sm" fontWeight="medium">
-                              <strong>Conflict:</strong> {person.conflictReason}
-                            </Text>
-                          </Box>
-                        </Alert>
-                      )}
-                      {index < getSelectedPersonnelInfo().length - 1 && (
-                          <Divider mt={4} />
-                      )}
+          <Box borderWidth="1px" borderColor={borderColor} borderRadius="md" p={3}>
+            <VStack spacing={2} align="stretch">
+              {getSelectedPersonnelInfo().map((person) => (
+                <HStack
+                  key={person.id}
+                  justify="space-between"
+                  p={2}
+                  borderRadius="md"
+                  bg={bgColor}
+                  borderWidth="1px"
+                  borderColor={person.isAvailable ? borderColor : 'orange.300'}
+                >
+                  <HStack spacing={2}>
+                    <Avatar name={person.fullName} size="sm" />
+                    <Box>
+                      <Text fontSize="sm" fontWeight="medium">{person.fullName}</Text>
+                      <Text fontSize="xs" color={mutedTextColor}>{person.departmentName}</Text>
                     </Box>
-                  ))}
-                  </VStack>
-                </VStack>
-              </CardBody>
-            </Card>
-          </ScaleFade>
+                  </HStack>
+                  <HStack spacing={1}>
+                    {!person.isAvailable && (
+                      <Tooltip label={person.conflictReason} placement="top">
+                        <Icon as={FiInfo} color="orange.500" boxSize={4} />
+                      </Tooltip>
+                    )}
+                    <IconButton
+                      aria-label="Elimină persoana"
+                      icon={<FiTrash2 />}
+                      size="xs"
+                      variant="ghost"
+                      colorScheme="red"
+                      onClick={() => handleRemovePersonnel(person.id)}
+                      isDisabled={isDisabled}
+                    />
+                  </HStack>
+                </HStack>
+              ))}
+            </VStack>
+          </Box>
         )}
 
-        {/* Mesaj dacă nu există personal disponibil */}
         {!loading && availablePersonnel.length === 0 && (
-          <SlideFade in={true}>
-            <Alert status="info" borderRadius="xl" border="2px solid" borderColor="blue.200">
+          <Alert status="info" size="sm" borderRadius="md">
             <AlertIcon />
-            <Box>
-                <Text fontSize="sm" fontWeight="medium">
-                Nu există personal disponibil pentru acest interval orar.
-              </Text>
-            </Box>
+            Nu există personal disponibil pentru acest interval orar.
           </Alert>
-          </SlideFade>
         )}
 
-        {/* Mesaj informativ pentru conflicte */}
         {selectedPersonnel.some(id => {
           const person = availablePersonnel.find(p => p.id === id);
           return person && !person.isAvailable;
         }) && (
-          <SlideFade in={true}>
-            <Alert status="warning" borderRadius="xl" border="2px solid" borderColor="orange.200">
+          <Alert status="warning" size="sm" borderRadius="md">
             <AlertIcon />
-            <Box>
-                <Text fontSize="sm" fontWeight="medium">
-                <strong>Atenție:</strong> Aveți personal asignat care are conflicte de programare. 
-                Verificați detaliile pentru fiecare persoană.
-              </Text>
-            </Box>
+            Personal asignat cu conflicte de programare.
           </Alert>
-          </SlideFade>
         )}
       </VStack>
 
       {/* Modal pentru selecția personalului */}
-      <Modal isOpen={isOpen} onClose={onClose} size="4xl" scrollBehavior="inside">
-        <ModalOverlay backdropFilter="blur(8px)" bg="blackAlpha.300" />
-        <ModalContent borderRadius="2xl" overflow="hidden">
-          <ModalHeader 
-            bg={`linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`}
-            color="white"
-            textAlign="center"
-          >
-            <HStack justify="center" spacing={3}>
-              <Icon as={FiUsers} boxSize={6} />
-              <Text fontSize="xl" fontWeight="bold">
-                Selectează Personal pentru Eveniment
-              </Text>
-            </HStack>
+      <Modal isOpen={isOpen} onClose={onClose} size="3xl" scrollBehavior="inside">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader fontSize="md" py={3}>
+            Selectează personal
           </ModalHeader>
-          <ModalCloseButton color="white" />
+          <ModalCloseButton />
           
-          <ModalBody py={6}>
-            <VStack spacing={6} align="stretch">
+          <ModalBody py={4}>
+            <VStack spacing={4} align="stretch">
               {/* Căutare */}
               <InputGroup>
                 <InputLeftElement>
@@ -626,122 +332,50 @@ export default function PersonnelSelector({
                   placeholder="Caută după nume, email sau departament..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  borderRadius="xl"
-                  borderWidth="2px"
-                  _focus={{
-                    borderColor: primaryColor,
-                    boxShadow: `0 0 0 1px ${primaryColor}`,
-                  }}
+                  size="sm"
                 />
               </InputGroup>
 
-              {/* Lista personalului */}
-              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+              <VStack spacing={2} align="stretch" maxH="50vh" overflowY="auto">
                 {getFilteredPersonnel().map((person) => (
-                  <Card
+                  <HStack
                     key={person.id}
-                    border="2px solid"
-                    borderColor={person.isAvailable ? 'green.200' : 'red.200'}
-                    borderRadius="xl"
-                    overflow="hidden"
-                    _hover={{
-                      transform: 'translateY(-4px)',
-                      boxShadow: 'xl',
-                    }}
-                    transition="all 0.3s"
-                    animation={`${slideInUp} 0.5s ease-out`}
+                    justify="space-between"
+                    p={2}
+                    borderWidth="1px"
+                    borderColor={person.isAvailable ? borderColor : 'orange.300'}
+                    borderRadius="md"
                   >
-                    <CardBody p={6}>
-                      <VStack spacing={4} align="stretch">
-                        <HStack justify="space-between">
-                          <HStack spacing={4}>
-                            <Avatar 
-                              name={person.fullName}
-                              size="lg"
-                              bg={person.isAvailable ? 'green.500' : 'red.500'}
-                            />
-                            <VStack align="start" spacing={1}>
-                              <Text fontWeight="bold" fontSize="lg">
-                                {person.fullName}
-                              </Text>
-                              <Text fontSize="sm" color="gray.600">
-                                {person.email}
-                              </Text>
-                              <Badge colorScheme="blue" variant="solid">
-                                {person.departmentName}
-                              </Badge>
-                            </VStack>
-                          </HStack>
-                          <Box
-                            p={2}
-                            borderRadius="full"
-                            bg={person.isAvailable ? 'green.100' : 'red.100'}
-                            color={person.isAvailable ? 'green.600' : 'red.600'}
-                          >
-                            <Icon 
-                              as={person.isAvailable ? FiUserCheck : FiUserX} 
-                              boxSize={5}
-                            />
-                          </Box>
-                        </HStack>
-
-                        {person.roles.length > 0 && (
-                          <HStack spacing={1} flexWrap="wrap">
-                            {person.roles.map(role => (
-                              <Badge key={role} size="sm" colorScheme="purple" variant="solid">
-                                {role}
-                              </Badge>
-                            ))}
-                          </HStack>
-                        )}
-
-                        {!person.isAvailable && person.conflictReason && (
-                          <Alert status="warning" size="sm" borderRadius="lg">
-                            <AlertIcon />
-                            <Text fontSize="sm">
-                              <strong>Conflict:</strong> {person.conflictReason}
-                            </Text>
-                          </Alert>
-                        )}
-
-                        <Button
-                          leftIcon={<FiPlus />}
-                          onClick={() => handleAddPersonnel(person.id)}
-                          isDisabled={selectedPersonnel.includes(person.id)}
-                          colorScheme={person.isAvailable ? 'green' : 'red'}
-                          variant="solid"
-                          borderRadius="xl"
-                          _hover={{
-                            transform: 'scale(1.05)',
-                          }}
-                          transition="all 0.2s"
-                        >
-                          {selectedPersonnel.includes(person.id) 
-                            ? 'Deja Asignat' 
-                            : person.isAvailable 
-                              ? 'Adaugă Personal' 
-                              : 'Adaugă (Conflict)'
-                          }
-                        </Button>
-                      </VStack>
-                    </CardBody>
-                  </Card>
+                    <HStack spacing={2}>
+                      <Avatar name={person.fullName} size="sm" />
+                      <Box>
+                        <Text fontSize="sm" fontWeight="medium">{person.fullName}</Text>
+                        <Text fontSize="xs" color={mutedTextColor}>{person.departmentName}</Text>
+                      </Box>
+                    </HStack>
+                    <Button
+                      size="xs"
+                      onClick={() => handleAddPersonnel(person.id)}
+                      isDisabled={selectedPersonnel.includes(person.id)}
+                      colorScheme={person.isAvailable ? 'blue' : 'orange'}
+                      variant={selectedPersonnel.includes(person.id) ? 'ghost' : 'outline'}
+                    >
+                      {selectedPersonnel.includes(person.id) ? 'Asignat' : 'Adaugă'}
+                    </Button>
+                  </HStack>
                 ))}
-              </SimpleGrid>
+              </VStack>
 
               {getFilteredPersonnel().length === 0 && (
-                <Box textAlign="center" py={8}>
-                  <Icon as={FiUsers} boxSize={16} color="gray.300" mb={4} />
-                  <Text fontSize="lg" color="gray.500">
-                    Nu s-au găsit rezultate pentru "{searchTerm}"
-                  </Text>
-                </Box>
+                <Text textAlign="center" py={6} fontSize="sm" color={mutedTextColor}>
+                  Nu s-au găsit rezultate
+                </Text>
               )}
             </VStack>
           </ModalBody>
           
-          <ModalFooter borderTopWidth="1px" borderColor={borderColor}>
-            <Button variant="ghost" onClick={onClose}>
+          <ModalFooter borderTopWidth="1px" borderColor={borderColor} py={2}>
+            <Button variant="ghost" size="sm" onClick={onClose}>
               Închide
             </Button>
           </ModalFooter>

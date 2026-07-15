@@ -33,11 +33,19 @@ import {
   StatHelpText,
 } from '@chakra-ui/react';
 import { FiTrendingUp, FiTrendingDown, FiPackage, FiUser, FiCalendar, FiFileText, FiDollarSign, FiMapPin } from 'react-icons/fi';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { SupplyService } from '../../services/supply/SupplyService';
 import DepartmentService, { Department } from '../../services/DepartmentService';
 import { Product, StockMovementType, Inventory } from '../../types/supply';
+import { parseDecimalInput, formatDecimalInput } from '../../utils/decimalInput';
+
+interface LocationStockOption {
+  location: string;
+  inventoryId: number | null;
+  quantity: number;
+  unitCost: number;
+}
 
 interface StockMovementModalProps {
     isOpen: boolean;
@@ -81,6 +89,35 @@ const AVAILABLE_LOCATIONS = [
   'Urgență',
 ];
 
+const buildLocationOptions = (productInventory: Inventory | null): LocationStockOption[] => {
+  const details = productInventory?.locationDetails || [];
+  const byLocation = new Map(details.map((detail) => [detail.location, detail]));
+
+  return AVAILABLE_LOCATIONS.map((location) => {
+    const detail = byLocation.get(location);
+    return {
+      location,
+      inventoryId: detail?.id ?? null,
+      quantity: detail?.quantity ?? 0,
+      unitCost: detail?.unitCost ?? productInventory?.unitCost ?? 0,
+    };
+  });
+};
+
+const pickDefaultLocation = (options: LocationStockOption[], preferred?: string) => {
+  if (preferred) {
+    const preferredOption = options.find((option) => option.location === preferred);
+    if (preferredOption) return preferredOption;
+  }
+
+  const withStock = options.filter((option) => option.quantity > 0);
+  if (withStock.length > 0) {
+    return withStock.sort((a, b) => b.quantity - a.quantity)[0];
+  }
+
+  return options[0];
+};
+
 const inReasons = [
   'Achiziție nouă',
   'Returnare de la departament',
@@ -121,7 +158,9 @@ export default function StockMovementModal({
   const [inventory, setInventory] = useState<Inventory[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [selectedInventory, setSelectedInventory] = useState<Inventory | null>(null);
+  const [selectedProductInventory, setSelectedProductInventory] = useState<Inventory | null>(null);
+  const [selectedLocationStock, setSelectedLocationStock] = useState<LocationStockOption | null>(null);
+  const [unitCostInput, setUnitCostInput] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(false);
     const toast = useToast();
@@ -138,7 +177,9 @@ export default function StockMovementModal({
         referenceDocument: generateDocumentReference(),
       });
       setSelectedProduct(null);
-      setSelectedInventory(null);
+      setSelectedProductInventory(null);
+      setSelectedLocationStock(null);
+      setUnitCostInput('');
       setErrors({});
     }
   }, [isOpen, movementType]);
@@ -160,6 +201,81 @@ export default function StockMovementModal({
     return `${typePrefix[movementType]}-${year}${month}${day}-${time}`;
   };
 
+  const locationOptions = useMemo(
+    () => buildLocationOptions(selectedProductInventory),
+    [selectedProductInventory]
+  );
+
+  const applyProductSelection = (
+    productId: number,
+    preferredLocation?: string,
+    preferredQuantity?: number,
+    productsList: Product[] = products,
+    inventoryList: Inventory[] = inventory
+  ) => {
+    const product = productsList.find((p) => p.id === productId);
+    const productInventory = inventoryList.find((inv) => inv.product.id === productId) || null;
+    const options = buildLocationOptions(productInventory);
+    const locationStock = pickDefaultLocation(options, preferredLocation);
+
+    setSelectedProduct(product || null);
+    setSelectedProductInventory(productInventory);
+    setSelectedLocationStock(locationStock);
+
+    const defaultUnitCost = locationStock.unitCost || product?.unit_price || 0;
+    let prefillQuantity = preferredQuantity ?? 0;
+
+    if (prefillQuantity === 0) {
+      if (movementType === 'OUT' && locationStock.quantity > 0) {
+        prefillQuantity = Math.min(locationStock.quantity, 100);
+      } else if (movementType === 'ADJUSTMENT' && locationStock.quantity > 0) {
+        prefillQuantity = locationStock.quantity;
+      }
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      productId,
+      location: locationStock.location,
+      quantity: prefillQuantity,
+      unitCost: defaultUnitCost,
+    }));
+    setUnitCostInput(defaultUnitCost > 0 ? formatDecimalInput(defaultUnitCost) : '');
+
+    if (errors.quantity) {
+      setErrors((prev) => ({ ...prev, quantity: '' }));
+    }
+  };
+
+  const applyLocationSelection = (location: string) => {
+    const locationStock = locationOptions.find((option) => option.location === location);
+    if (!locationStock) return;
+
+    setSelectedLocationStock(locationStock);
+    setFormData((prev) => ({
+      ...prev,
+      location,
+      quantity:
+        movementType === 'OUT'
+          ? Math.min(prev.quantity || 0, locationStock.quantity || 0)
+          : movementType === 'ADJUSTMENT'
+            ? locationStock.quantity
+            : prev.quantity,
+      unitCost:
+        movementType === 'IN' && locationStock.unitCost > 0
+          ? locationStock.unitCost
+          : prev.unitCost,
+    }));
+
+    if (movementType === 'IN' && locationStock.unitCost > 0) {
+      setUnitCostInput(formatDecimalInput(locationStock.unitCost));
+    }
+
+    if (errors.quantity) {
+      setErrors((prev) => ({ ...prev, quantity: '' }));
+    }
+  };
+
   const loadData = async () => {
     try {
       const [productsResponse, inventoryResponse, departmentsResponse] = await Promise.all([
@@ -173,15 +289,16 @@ export default function StockMovementModal({
 
       // Dacă avem un inventoryId specific, selectăm produsul corespunzător
       if (inventoryId) {
-        const selectedInv = inventoryResponse.data.find(inv => inv.id === inventoryId);
+        const selectedInv = inventoryResponse.data.find((inv) => inv.id === inventoryId);
         if (selectedInv) {
-          setSelectedInventory(selectedInv);
-          setSelectedProduct(selectedInv.product);
-          setFormData(prev => ({ 
-            ...prev, 
-            productId: selectedInv.product.id,
-            location: selectedInv.location || 'Depozit Principal'
-          }));
+          const preferredLocation = selectedInv.locationDetails?.[0]?.location || selectedInv.location?.split(', ')?.[0];
+          applyProductSelection(
+            selectedInv.product.id,
+            preferredLocation,
+            undefined,
+            productsResponse.data,
+            inventoryResponse.data
+          );
         }
       }
     } catch (error) {
@@ -197,33 +314,16 @@ export default function StockMovementModal({
   };
 
   const handleProductChange = (productId: number) => {
-    const product = products.find(p => p.id === productId);
-    const productInventory = inventory.find(inv => inv.product.id === productId);
-    
-    setSelectedProduct(product || null);
-    setSelectedInventory(productInventory || null);
-    
-    const newLocation = productInventory?.location || 'Depozit Principal';
-    
-    // Pre-populez cantitatea cu stocul curent pentru ieșiri
-    let prefillQuantity = 0;
-    if (movementType === 'OUT' && productInventory) {
-      prefillQuantity = Math.min(productInventory.quantity, 100); // Pre-fill cu o cantitate rezonabilă
-    } else if (movementType === 'ADJUSTMENT' && productInventory) {
-      prefillQuantity = productInventory.quantity; // Pentru ajustare, pre-fill cu stocul curent
-    }
-    
-    setFormData(prev => ({ 
-      ...prev, 
-      productId,
-      location: newLocation,
-      quantity: prefillQuantity
-    }));
-    
-    // Clear quantity-related errors when product changes
-    if (errors.quantity) {
-      setErrors(prev => ({ ...prev, quantity: '' }));
-    }
+    applyProductSelection(productId);
+  };
+
+  const handleLocationChange = (location: string) => {
+    applyLocationSelection(location);
+  };
+
+  const handleUnitCostChange = (value: string) => {
+    setUnitCostInput(value);
+    handleChange('unitCost', parseDecimalInput(value));
   };
 
   const validateForm = () => {
@@ -237,8 +337,8 @@ export default function StockMovementModal({
       newErrors.quantity = 'Cantitatea trebuie să fie mai mare decât 0';
     }
 
-    if (selectedInventory && movementType === 'OUT' && formData.quantity > selectedInventory.quantity) {
-      newErrors.quantity = `Cantitatea nu poate fi mai mare decât stocul disponibil (${selectedInventory.quantity})`;
+    if (selectedLocationStock && movementType === 'OUT' && formData.quantity > selectedLocationStock.quantity) {
+      newErrors.quantity = `Cantitatea nu poate fi mai mare decât stocul disponibil la ${selectedLocationStock.location} (${selectedLocationStock.quantity})`;
     }
 
     if (movementType === 'ADJUSTMENT' && (!formData.quantity || formData.quantity < 0)) {
@@ -277,10 +377,10 @@ export default function StockMovementModal({
                 return;
             }
 
-    if (!selectedInventory) {
+    if (!selectedProductInventory || !selectedLocationStock) {
                 toast({
                     title: 'Eroare',
-        description: 'Nu s-a găsit inventarul pentru produsul selectat.',
+        description: 'Selectați produsul și locația de depozit.',
                     status: 'error',
         duration: 5000,
                     isClosable: true,
@@ -288,14 +388,20 @@ export default function StockMovementModal({
                 return;
             }
 
+    const resolvedInventoryId =
+      selectedLocationStock.inventoryId ||
+      selectedProductInventory.locationDetails?.[0]?.id ||
+      selectedProductInventory.id;
+
     try {
       setLoading(true);
 
       const movementData = {
-        inventoryId: selectedInventory.id,
+        inventoryId: resolvedInventoryId,
         type: movementType,
                 quantity: formData.quantity,
         unitCost: formData.unitCost || 0,
+        location: formData.location,
         referenceDocument: formData.referenceDocument,
         reason: formData.reason,
         performedBy: user?.name || `${user?.first_name} ${user?.last_name}`.trim() || user?.email || 'Utilizator necunoscut',
@@ -307,10 +413,11 @@ export default function StockMovementModal({
 
       await supplyService.createStockMovement(movementData);
 
+      const currentLocationStock = selectedLocationStock.quantity;
       const newStock = movementType === 'IN' 
-        ? selectedInventory.quantity + formData.quantity
+        ? currentLocationStock + formData.quantity
         : movementType === 'OUT'
-        ? selectedInventory.quantity - formData.quantity
+        ? currentLocationStock - formData.quantity
         : formData.quantity; // For ADJUSTMENT
 
             toast({
@@ -325,7 +432,9 @@ export default function StockMovementModal({
             onClose();
       setFormData(initialFormData);
       setSelectedProduct(null);
-      setSelectedInventory(null);
+      setSelectedProductInventory(null);
+      setSelectedLocationStock(null);
+      setUnitCostInput('');
     } catch (error: any) {
       console.error('Error saving stock movement:', error);
             toast({
@@ -370,11 +479,13 @@ export default function StockMovementModal({
     }
   };
 
-  const newStock = selectedInventory ? (
+  const currentLocationQuantity = selectedLocationStock?.quantity || 0;
+
+  const newStock = selectedLocationStock ? (
     movementType === 'IN' 
-      ? selectedInventory.quantity + (formData.quantity || 0)
+      ? currentLocationQuantity + (formData.quantity || 0)
       : movementType === 'OUT'
-      ? selectedInventory.quantity - (formData.quantity || 0)
+      ? currentLocationQuantity - (formData.quantity || 0)
       : formData.quantity || 0 // For ADJUSTMENT
   ) : 0;
 
@@ -471,9 +582,13 @@ export default function StockMovementModal({
                     <Stat>
                       <StatLabel>Stoc Curent</StatLabel>
                       <StatNumber fontSize="md">
-                        {selectedInventory?.quantity || 0} {selectedProduct.unit}
+                        {currentLocationQuantity} {selectedProduct.unit}
                       </StatNumber>
-                      <StatHelpText>Disponibil</StatHelpText>
+                      <StatHelpText>
+                        {selectedLocationStock
+                          ? `La ${selectedLocationStock.location}`
+                          : 'Disponibil'}
+                      </StatHelpText>
                     </Stat>
                     <Stat>
                       <StatLabel>Preț Unitar</StatLabel>
@@ -506,9 +621,9 @@ export default function StockMovementModal({
                     Cantitate {movementType === 'ADJUSTMENT' ? 'Finală' : 
                               movementType === 'IN' ? 'Intrată' : 'Ieșită'} 
                     {selectedProduct && ` (${selectedProduct.unit})`}
-                    {selectedInventory && (
+                    {selectedLocationStock && (
                       <Text fontSize="sm" color="gray.500" fontWeight="normal">
-                        Stoc disponibil: {selectedInventory.quantity} {selectedProduct?.unit}
+                        Stoc la {selectedLocationStock.location}: {selectedLocationStock.quantity} {selectedProduct?.unit}
                       </Text>
                     )}
                   </FormLabel>
@@ -516,7 +631,7 @@ export default function StockMovementModal({
                     value={formData.quantity}
                     onChange={(_, value) => handleChange('quantity', value || 0)}
                     min={0}
-                    max={movementType === 'OUT' ? (selectedInventory?.quantity || 0) : undefined}
+                    max={movementType === 'OUT' ? (selectedLocationStock?.quantity || 0) : undefined}
                     size="lg"
                     precision={0}
                   >
@@ -529,7 +644,7 @@ export default function StockMovementModal({
                   </NumberInput>
                   
                   {/* Butoane rapide pentru cantități */}
-                  {selectedInventory && movementType === 'OUT' && (
+                  {selectedLocationStock && movementType === 'OUT' && (
                     <HStack mt={2} spacing={2} flexWrap="wrap">
                       <Text fontSize="sm" color="gray.600">Cantități rapide:</Text>
                       {[1, 5, 10, 25, 50, 100].map(quickQty => (
@@ -537,8 +652,8 @@ export default function StockMovementModal({
                           key={quickQty}
                           size="xs"
                           variant="outline"
-                          onClick={() => handleChange('quantity', Math.min(quickQty, selectedInventory.quantity))}
-                          isDisabled={quickQty > selectedInventory.quantity}
+                          onClick={() => handleChange('quantity', Math.min(quickQty, selectedLocationStock.quantity))}
+                          isDisabled={quickQty > selectedLocationStock.quantity}
                         >
                           {quickQty}
                         </Button>
@@ -547,9 +662,9 @@ export default function StockMovementModal({
                         size="xs"
                         variant="outline"
                         colorScheme="red"
-                        onClick={() => handleChange('quantity', selectedInventory.quantity)}
+                        onClick={() => handleChange('quantity', selectedLocationStock.quantity)}
                       >
-                        Toate ({selectedInventory.quantity})
+                        Toate ({selectedLocationStock.quantity})
                       </Button>
                     </HStack>
                   )}
@@ -560,14 +675,12 @@ export default function StockMovementModal({
                 {movementType === 'IN' && (
                   <FormControl isInvalid={!!errors.unitCost}>
                     <FormLabel>Cost Unitar (RON)</FormLabel>
-                    <NumberInput
-                      value={formData.unitCost}
-                      onChange={(_, value) => handleChange('unitCost', value || 0)}
-                                min={0}
-                      precision={2}
-                            >
-                      <NumberInputField placeholder="0.00" />
-                            </NumberInput>
+                    <Input
+                      value={unitCostInput}
+                      onChange={(e) => handleUnitCostChange(e.target.value)}
+                      placeholder="0,00"
+                      inputMode="decimal"
+                    />
                     <FormErrorMessage>{errors.unitCost}</FormErrorMessage>
                   </FormControl>
                 )}
@@ -581,12 +694,12 @@ export default function StockMovementModal({
                   </FormLabel>
                   <Select
                     value={formData.location}
-                    onChange={(e) => handleChange('location', e.target.value)}
+                    onChange={(e) => handleLocationChange(e.target.value)}
                     placeholder="Selectează locația"
                   >
-                    {AVAILABLE_LOCATIONS.map((location) => (
-                      <option key={location} value={location}>
-                        {location}
+                    {locationOptions.map((option) => (
+                      <option key={option.location} value={option.location}>
+                        {option.location} ({option.quantity} {selectedProduct?.unit || 'buc'})
                       </option>
                     ))}
                   </Select>
@@ -649,7 +762,7 @@ export default function StockMovementModal({
             </Box>
 
             {/* Preview Stoc și Costuri */}
-            {selectedInventory && formData.quantity > 0 && (
+            {selectedLocationStock && formData.quantity > 0 && (
               <Box w="full" p={4} bg="blue.50" _dark={{ bg: 'blue.900' }} borderRadius="lg">
                 <Text fontSize="lg" fontWeight="medium" mb={3}>
                   <HStack>
@@ -661,9 +774,11 @@ export default function StockMovementModal({
                   <Stat>
                     <StatLabel>Stoc Curent</StatLabel>
                     <StatNumber fontSize="md">
-                      {selectedInventory.quantity} {selectedProduct?.unit}
+                      {currentLocationQuantity} {selectedProduct?.unit}
                     </StatNumber>
-                    <StatHelpText>Disponibil acum</StatHelpText>
+                    <StatHelpText>
+                      {selectedLocationStock ? `La ${selectedLocationStock.location}` : 'Disponibil acum'}
+                    </StatHelpText>
                   </Stat>
                   <Stat>
                     <StatLabel>

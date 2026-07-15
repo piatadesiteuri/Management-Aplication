@@ -56,31 +56,42 @@ export interface DSPDKPI {
 }
 
 export interface DashboardKPIs {
-  epidemiological: {
-    totalCases: number;
-    responseRate: number;
-    avgResponseTime: number;
+  period: {
+    startDate: string;
+    endDate: string;
   };
+  events: {
+    total: number;
+    completed: number;
+    completionRate: number;
+    avgResponseTimeHours: number;
+    supplyOrders: number;
+    transportDeliveries: number;
+    inspections: number;
+  };
+  tasks: {
+    total: number;
+    completed: number;
+    completionRate: number;
+  };
+  vehicles: {
+    total: number;
+    active: number;
+    utilizationRate: number;
+    fuelCostPerKm: number;
+    totalDistance: number;
+  };
+  costs: {
+    operationalTotal: number;
+    fuel: number;
+    maintenance: number;
+  };
+  departments: DSPDKPI['departmentMetrics'];
+  eventTypes: DSPDKPI['eventTypeMetrics'];
   inspection: {
     totalInspections: number;
     complianceRate: number;
     sanctionsApplied: number;
-  };
-  operational: {
-    vehicleEfficiency: number;
-    resourceUtilization: number;
-    operationalCosts: number;
-  };
-  performance: {
-    taskCompletionRate: number;
-    reportCompletionRate: number;
-    userSatisfaction: number;
-  };
-  summary: {
-    totalEvents: number;
-    totalTasks: number;
-    totalVehicles: number;
-    activeVehicles: number;
   };
 }
 
@@ -120,8 +131,8 @@ export class KPIService {
   /**
    * Obține KPI-uri pentru dashboard
    */
-  static async getDashboardKPIs(): Promise<DashboardKPIs> {
-    const response = await api.get('/kpis/dashboard');
+  static async getDashboardKPIs(period: string = 'current'): Promise<DashboardKPIs> {
+    const response = await api.get('/kpis/dashboard', { params: { period } });
     return response.data.data;
   }
 

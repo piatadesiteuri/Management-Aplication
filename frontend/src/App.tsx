@@ -36,7 +36,6 @@ import StockAuditPage from './pages/StockAuditPage';
 import MaterialRequestsPage from './pages/MaterialRequestsPage';
 import TraceabilityPage from './pages/TraceabilityPage';
 import RegistryPage from './pages/RegistryPage';
-import WorkflowEnginePage from './pages/WorkflowEnginePage';
 import PatientsPage from './pages/PatientsPage';
 import AnalysisRequestsPage from './pages/AnalysisRequestsPage';
 import LaboratoryTestsPage from './pages/LaboratoryTestsPage';
@@ -179,7 +178,6 @@ function App() {
             <Route path="stock-audit" element={<PermissionRoute requiredPermissions={['stock_audit.view']} fallbackTo="/admin/dashboard"><StockAuditPage /></PermissionRoute>} />
             <Route path="traceability" element={<PermissionRoute requiredPermissions={['traceability.view']} fallbackTo="/admin/dashboard"><TraceabilityPage /></PermissionRoute>} />
             <Route path="registry" element={<PermissionRoute requiredPermissions={['documents.view']} fallbackTo="/admin/dashboard"><RegistryPage /></PermissionRoute>} />
-            <Route path="workflows" element={<PermissionRoute requiredPermissions={['workflows.view']} fallbackTo="/admin/dashboard"><WorkflowEnginePage /></PermissionRoute>} />
             <Route path="patients" element={<PermissionRoute requiredPermissions={['patients.view']} fallbackTo="/admin/dashboard"><PatientsPage /></PermissionRoute>} />
             <Route path="portal" element={<PermissionRoute requiredPermissions={['patient_portal.view']} fallbackTo="/admin/dashboard"><PatientPortalPage /></PermissionRoute>} />
             <Route path="lims">

@@ -17,6 +17,7 @@ router.post('/daily-activity', DailyActivityController.saveDailyActivity);
 router.put('/daily-activity/:id', DailyActivityController.updateDailyActivity);
 router.get('/previous-day/:date', DailyActivityController.getPreviousDayActivity);
 router.post('/finalize-daily', DailyActivityController.finalizeDailyActivity);
+router.post('/reopen-daily', DailyActivityController.reopenDailyActivity);
 router.get('/monthly-report/:vehicleId/:year/:month', DailyActivityController.getMonthlyReport);
 // IMPORTANT: GET /daily-activity/:date trebuie să fie la sfârșit pentru a nu interferea cu DELETE /daily-activity/:id
 router.get('/daily-activity/:date', DailyActivityController.getDailyActivity);

@@ -30,6 +30,7 @@ import {
   Badge,
   Divider,
   Tooltip,
+  SimpleGrid,
 } from '@chakra-ui/react'
 import { keyframes } from '@emotion/react'
 import {
@@ -60,14 +61,16 @@ import {
   FiMonitor,
   FiBell,
   FiUser,
-  FiRepeat,
 } from 'react-icons/fi'
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth';
 import { useEffect, useState, useRef } from 'react';
-import { fetchNotifications, markAllAsRead, markAsRead, connectNotificationsWS, Notification } from '../../services/NotificationsService';
+import { fetchNotifications, fetchInternalNotesInboxCount, markAllAsRead, markAsRead, connectNotificationsWS, Notification } from '../../services/NotificationsService';
 import { ActivityLogService, ActivityLog } from '../../services/ActivityLogService';
+import { StockService } from '../../services/StockService';
 import { ADMIN_ENTRY_ROLES } from '../../config/permissions';
+import { NavIconBadge } from '../common/NavIconBadge';
+import { resolveNotificationPath, resolveNotificationEventId } from '../../utils/notificationNavigation';
 
 interface NavItem {
   label: string
@@ -177,6 +180,13 @@ const NAV_ITEMS: Array<NavItem> = [
         requiredPermissions: ['supply.view'],
       },
       {
+        label: 'Cereri Materiale',
+        subLabel: 'Aprobă sau respinge cererile de la magazioneri',
+        href: '/admin/material-requests',
+        icon: FiFileText,
+        requiredPermissions: ['material_requests.view'],
+      },
+      {
         label: 'Audit Stoc',
         subLabel: 'Istoricul modificărilor de stoc',
         href: '/admin/stock-audit',
@@ -248,13 +258,6 @@ const NAV_ITEMS: Array<NavItem> = [
         requiredPermissions: ['patient_portal.view'],
       },
       {
-        label: 'Motor fluxuri',
-        subLabel: 'Modelare + execuție + rollback/versionare',
-        href: '/admin/workflows',
-        icon: FiRepeat,
-        requiredPermissions: ['workflows.view'],
-      },
-      {
         label: 'Utilizatori',
         subLabel: 'Gestionează utilizatorii sistemului',
         href: '/admin/users',
@@ -305,10 +308,13 @@ export default function Navbar() {
   const location = useLocation();
   const { user, logout, hasPermission } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [newNotesCount, setNewNotesCount] = useState(0);
   // Removed unused dropdownOpen state
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
+  const [materialRequestDetails, setMaterialRequestDetails] = useState<any>(null);
+  const [loadingRequestDetails, setLoadingRequestDetails] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const navigate = useNavigate();
   
@@ -327,7 +333,18 @@ export default function Navbar() {
   // Fetch inițial + WebSocket
   useEffect(() => {
     if (!user?.id) return;
+
+    const refreshInboxCount = () => {
+      if (!hasPermission('tasks.view')) return;
+      fetchInternalNotesInboxCount().then(setNewNotesCount);
+    };
+
     fetchNotifications().then(setNotifications);
+    refreshInboxCount();
+
+    const handleInboxUpdate = () => refreshInboxCount();
+    window.addEventListener('internalNoteUpdate', handleInboxUpdate);
+
     wsRef.current = connectNotificationsWS(Number(user.id), (notif) => {
       // Validare completă pentru notificare
       if (!notif || typeof notif !== 'object') {
@@ -352,10 +369,18 @@ export default function Navbar() {
         type: notif.type,
         status: 'unread' as 'unread' | 'read',
         created_at: new Date().toISOString(),
+        ...(notif.type === 'INTERNAL_NOTE' && { task_id: notif.task_id }),
+        ...(notif.type === 'MATERIAL_REQUEST' && {
+          request_id: notif.request_id,
+        }),
       };
       
       // Adaugă la navbar
       setNotifications((prev) => [newNotification, ...prev]);
+
+      if (notif.type === 'INTERNAL_NOTE') {
+        window.dispatchEvent(new CustomEvent('internalNoteUpdate'));
+      }
       
       // Trimite către NotificationsPage
       window.dispatchEvent(new CustomEvent('notificationUpdate', {
@@ -364,6 +389,7 @@ export default function Navbar() {
     });
 
     return () => {
+      window.removeEventListener('internalNoteUpdate', handleInboxUpdate);
       const socket = wsRef.current;
       wsRef.current = null;
       if (!socket) return;
@@ -378,6 +404,12 @@ export default function Navbar() {
       }
     };
   }, [user?.id]);
+
+  useEffect(() => {
+    if (location.pathname.endsWith('/tasks')) {
+      fetchInternalNotesInboxCount().then(setNewNotesCount);
+    }
+  }, [location.pathname]);
 
   // Sincronizare cu NotificationsPage
   useEffect(() => {
@@ -422,7 +454,36 @@ export default function Navbar() {
     }));
   };
 
-  const handleNotificationClick = (notification: Notification) => {
+  const handleNotificationClick = async (notification: Notification) => {
+    if (notification.type === 'INTERNAL_NOTE') {
+      if (notification.status === 'unread') {
+        handleMarkAsRead(notification.id);
+      }
+      const isAdmin = user?.roles?.some((role) => ADMIN_ENTRY_ROLES.includes(role));
+      const basePath = isAdmin ? '/admin' : '/user';
+      const taskId = notification.task_id;
+      navigate(taskId ? `${basePath}/tasks?note=${taskId}` : `${basePath}/tasks`);
+      return;
+    }
+
+    if (notification.type === 'MATERIAL_REQUEST') {
+      if (notification.status === 'unread') {
+        handleMarkAsRead(notification.id);
+      }
+      const path = await resolveNotificationPath(notification, user?.roles || []);
+      navigate(path);
+      return;
+    }
+
+    if (notification.type === 'MATERIAL_REQUEST_UPDATE') {
+      if (notification.status === 'unread') {
+        handleMarkAsRead(notification.id);
+      }
+      const path = await resolveNotificationPath(notification, user?.roles || []);
+      navigate(path);
+      return;
+    }
+
     setSelectedNotification(notification);
     onModalOpen();
     if (notification.status === 'unread') {
@@ -430,49 +491,21 @@ export default function Navbar() {
     }
   };
 
-  const handleViewEvent = () => {
-    if (selectedNotification) {
-      // Marchează notificarea ca citită
-      if (selectedNotification.status === 'unread') {
-        handleMarkAsRead(selectedNotification.id);
-      }
-      
-      const isAdmin = user?.roles?.some((role) => ADMIN_ENTRY_ROLES.includes(role));
-      const basePath = isAdmin ? '/admin' : '/user';
+  const handleViewEvent = async () => {
+    if (!selectedNotification) {
+      onModalClose();
+      return;
+    }
 
-      const notificationType = (selectedNotification as any).type;
-      
-      // Material Request notifications use request_id (not event_id)
-      const requestId = (selectedNotification as any).request_id;
-      if (notificationType === 'MATERIAL_REQUEST' && requestId) {
-        window.location.href = `${basePath}/material-requests?request=${requestId}`;
-        onModalClose();
-        return;
-      }
+    if (selectedNotification.status === 'unread') {
+      handleMarkAsRead(selectedNotification.id);
+    }
 
-      // Automated Report notifications - navigate to reports page with report ID
-      if (notificationType === 'AUTOMATED_REPORT') {
-        const reportData = (selectedNotification as any).data;
-        if (reportData?.reportId) {
-          // Extract numeric ID from reportId (format: "report_1768978844691_1" or just numeric ID)
-          const reportId = reportData.reportId.toString().replace('report_', '').split('_')[0];
-          window.location.href = `${basePath}/automated-reports?report=${reportId}`;
-        } else {
-          window.location.href = `${basePath}/automated-reports`;
-        }
-        onModalClose();
-        return;
-      }
-
-      // Otherwise, try to open a calendar event
-      const eventId = (selectedNotification as any).event_id;
-      if (eventId) {
-        window.location.href = `${basePath}/calendar?event=${eventId}`;
-        onModalClose();
-        return;
-      }
-
-      console.warn('No event_id/request_id found in notification:', selectedNotification);
+    const eventId = await resolveNotificationEventId(selectedNotification);
+    const path = await resolveNotificationPath(selectedNotification, user?.roles || []);
+    navigate(path);
+    if (eventId) {
+      window.dispatchEvent(new CustomEvent('openCalendarEvent', { detail: { eventId } }));
     }
     onModalClose();
   };
@@ -497,7 +530,7 @@ export default function Navbar() {
     if (isModalOpen && selectedNotification) {
       const notificationType = (selectedNotification as any).type;
       // For material requests and automated reports, there is no event; don't load EVENT logs.
-      if (notificationType === 'MATERIAL_REQUEST' || notificationType === 'AUTOMATED_REPORT') {
+      if (notificationType === 'MATERIAL_REQUEST' || notificationType === 'MATERIAL_REQUEST_UPDATE') {
         setActivityLogs([]);
         return;
       }
@@ -514,9 +547,39 @@ export default function Navbar() {
     }
   }, [isModalOpen, selectedNotification]);
 
+  useEffect(() => {
+    if (!isModalOpen || !selectedNotification || selectedNotification.type !== 'MATERIAL_REQUEST') {
+      setMaterialRequestDetails(null);
+      return;
+    }
+
+    const fetchRequestDetails = async () => {
+      setLoadingRequestDetails(true);
+      try {
+        const requestId = selectedNotification.request_id;
+        if (requestId) {
+          const response = await StockService.getMaterialRequestById(requestId);
+          setMaterialRequestDetails(response.data);
+        } else {
+          setMaterialRequestDetails(null);
+        }
+      } catch {
+        setMaterialRequestDetails(null);
+      } finally {
+        setLoadingRequestDetails(false);
+      }
+    };
+
+    fetchRequestDetails();
+  }, [isModalOpen, selectedNotification]);
+
   const unreadCount = notifications.filter(n => n.status === 'unread').length;
   const isAdmin = user?.roles?.some((role) => ADMIN_ENTRY_ROLES.includes(role)) || false;
-  const filteredNavItems = filterNavItemsByPermission(NAV_ITEMS, hasPermission);
+  const filteredNavItems = filterNavItemsByPermission(NAV_ITEMS, hasPermission).map((item) =>
+    item.label === 'Note interne' && newNotesCount > 0
+      ? { ...item, badge: String(newNotesCount > 9 ? '9+' : newNotesCount) }
+      : item
+  );
 
   return (
     <Box
@@ -831,22 +894,55 @@ export default function Navbar() {
                         )}
                       </VStack>
                     </Box>
-                  ) : (
-                    /* Debug info - doar pentru development, ascunde în producție */
-                    process.env.NODE_ENV === 'development' && (
-                      <Box p={3} bg={useColorModeValue('yellow.50', 'yellow.900')} borderRadius="md" mb={4}>
-                        <Text fontSize="sm" color={useColorModeValue('yellow.800', 'yellow.200')} fontWeight="bold">
-                          🔍 Debug Info:
+                  ) : selectedNotification.type === 'MATERIAL_REQUEST' ? (
+                    <Box p={5} bg={useColorModeValue('orange.50', 'whiteAlpha.100')} borderRadius="xl" border="1px solid" borderColor={useColorModeValue('orange.200', 'whiteAlpha.200')} mb={4}>
+                      <HStack spacing={3} mb={4}>
+                        <Icon as={FiPackage} boxSize={5} color="orange.500" />
+                        <Text fontWeight="bold" fontSize="lg" color={useColorModeValue('gray.800', 'white')}>
+                          Detalii cerere materiale
                         </Text>
-                        <Text fontSize="xs" color={useColorModeValue('yellow.700', 'yellow.300')} fontFamily="mono">
-                          Event ID: {(selectedNotification as any).event_id || 'Nu există'}
+                      </HStack>
+
+                      {loadingRequestDetails ? (
+                        <Text color={useColorModeValue('gray.600', 'gray.300')}>Se încarcă detaliile cererii...</Text>
+                      ) : materialRequestDetails ? (
+                        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+                          <Box>
+                            <Text fontSize="xs" color={useColorModeValue('gray.500', 'gray.400')} textTransform="uppercase" letterSpacing="wide">Nr. cerere</Text>
+                            <Text fontWeight="bold" color={useColorModeValue('blue.600', 'blue.300')}>{materialRequestDetails.request_number}</Text>
+                          </Box>
+                          <Box>
+                            <Text fontSize="xs" color={useColorModeValue('gray.500', 'gray.400')} textTransform="uppercase" letterSpacing="wide">Produs</Text>
+                            <Text fontWeight="semibold">{materialRequestDetails.product_name}</Text>
+                          </Box>
+                          <Box>
+                            <Text fontSize="xs" color={useColorModeValue('gray.500', 'gray.400')} textTransform="uppercase" letterSpacing="wide">Cantitate</Text>
+                            <Text fontWeight="bold">{materialRequestDetails.quantity_requested} {materialRequestDetails.product_unit || 'buc'}</Text>
+                          </Box>
+                          <Box>
+                            <Text fontSize="xs" color={useColorModeValue('gray.500', 'gray.400')} textTransform="uppercase" letterSpacing="wide">Solicitant</Text>
+                            <Text>{materialRequestDetails.requester_first_name} {materialRequestDetails.requester_last_name}</Text>
+                          </Box>
+                          <Box gridColumn={{ md: 'span 2' }}>
+                            <Text fontSize="xs" color={useColorModeValue('gray.500', 'gray.400')} textTransform="uppercase" letterSpacing="wide">Motiv</Text>
+                            <Text fontStyle="italic">{materialRequestDetails.reason || 'Nu a fost specificat'}</Text>
+                          </Box>
+                          <HStack spacing={3}>
+                            <Badge colorScheme={materialRequestDetails.priority === 'URGENT' ? 'red' : materialRequestDetails.priority === 'HIGH' ? 'orange' : materialRequestDetails.priority === 'MEDIUM' ? 'yellow' : 'green'}>
+                              {materialRequestDetails.priority === 'URGENT' ? 'Urgentă' : materialRequestDetails.priority === 'HIGH' ? 'Ridicată' : materialRequestDetails.priority === 'MEDIUM' ? 'Medie' : 'Scăzută'}
+                            </Badge>
+                            <Badge colorScheme={materialRequestDetails.status === 'APPROVED' ? 'green' : materialRequestDetails.status === 'REJECTED' ? 'red' : 'blue'}>
+                              {materialRequestDetails.status === 'APPROVED' ? 'Aprobată' : materialRequestDetails.status === 'REJECTED' ? 'Respinsă' : 'În așteptare'}
+                            </Badge>
+                          </HStack>
+                        </SimpleGrid>
+                      ) : (
+                        <Text color={useColorModeValue('gray.600', 'gray.300')}>
+                          Nu s-au putut încărca detaliile cererii. Apasă „Deschide cererea” pentru pagina completă.
                         </Text>
-                        <Text fontSize="xs" color={useColorModeValue('yellow.700', 'yellow.300')} fontFamily="mono">
-                          Data: {JSON.stringify(selectedNotification, null, 2)}
-                        </Text>
-                      </Box>
-                    )
-                  )}
+                      )}
+                    </Box>
+                  ) : null}
                   
                   <VStack align="stretch" spacing={3} mt={4}>
                     <HStack>
@@ -892,7 +988,7 @@ export default function Navbar() {
                 </Box>
 
                 {/* Activity Logs Section - Enhanced (only for notifications with event_id) */}
-                {(selectedNotification as any).type !== 'AUTOMATED_REPORT' && (selectedNotification as any).type !== 'MATERIAL_REQUEST' && (
+                {(selectedNotification as any).type !== 'AUTOMATED_REPORT' && (selectedNotification as any).type !== 'MATERIAL_REQUEST' && (selectedNotification as any).type !== 'MATERIAL_REQUEST_UPDATE' && (
                   <Box>
                     <Divider my={6} borderColor={useColorModeValue('gray.300', 'gray.600')} />
                     <VStack align="stretch" spacing={4}>
@@ -1044,6 +1140,7 @@ export default function Navbar() {
                   boxShadow="md"
                 >
                   {(selectedNotification as any)?.type === 'MATERIAL_REQUEST' ? 'Deschide Cererea' :
+                   (selectedNotification as any)?.type === 'MATERIAL_REQUEST_UPDATE' ? 'Deschide Livrarea' :
                    (selectedNotification as any)?.type === 'AUTOMATED_REPORT' ? 'Vezi Raport' :
                    'Deschide Evenimentul'}
                 </Button>
@@ -1055,6 +1152,15 @@ export default function Navbar() {
     </Box>
   );
 }
+
+const NavLinkContent = ({ navItem }: { navItem: NavItem }) => (
+  <HStack spacing={2}>
+    <NavIconBadge count={navItem.badge}>
+      <Icon as={navItem.icon} />
+    </NavIconBadge>
+    <Text as="span">{navItem.label}</Text>
+  </HStack>
+);
 
 const DesktopNav = ({ location, isAdmin, items }: { location: { pathname: string }, isAdmin: boolean, items: NavItem[] }) => {
   const linkColor = useColorModeValue('gray.600', 'gray.200')
@@ -1112,10 +1218,7 @@ const DesktopNav = ({ location, isAdmin, items }: { location: { pathname: string
                       borderRadius: 'full',
                     } : undefined}
                   >
-                    <HStack spacing={2}>
-                      <Icon as={navItem.icon} />
-                      {navItem.label}
-                    </HStack>
+                    <NavLinkContent navItem={navItem} />
                   </Box>
                 ) : (
                   <Box
@@ -1128,10 +1231,7 @@ const DesktopNav = ({ location, isAdmin, items }: { location: { pathname: string
                       color: linkHoverColor,
                     }}
                   >
-                    <HStack spacing={2}>
-                      <Icon as={navItem.icon} />
-                      {navItem.label}
-                    </HStack>
+                    <NavLinkContent navItem={navItem} />
                   </Box>
                 )}
               </PopoverTrigger>
@@ -1180,10 +1280,7 @@ const DesktopNav = ({ location, isAdmin, items }: { location: { pathname: string
                       borderRadius: 'full',
                     } : undefined}
                   >
-                    <HStack spacing={2}>
-                      <Icon as={navItem.icon} />
-                      {navItem.label}
-                    </HStack>
+                    <NavLinkContent navItem={navItem} />
                   </Box>
                 ) : (
                   <Box
@@ -1196,10 +1293,7 @@ const DesktopNav = ({ location, isAdmin, items }: { location: { pathname: string
                       color: linkHoverColor,
                     }}
                   >
-                    <HStack spacing={2}>
-                      <Icon as={navItem.icon} />
-                      {navItem.label}
-                    </HStack>
+                    <NavLinkContent navItem={navItem} />
                   </Box>
                 )}
               </PopoverTrigger>

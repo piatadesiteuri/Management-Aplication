@@ -5,6 +5,85 @@ import path from 'path';
 import { ActivityLogService } from '../services/ActivityLogService';
 import { TaskWorkflowService } from '../services/TaskWorkflowService';
 
+const formatMysqlDateTime = (date: string) => {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    const seconds = String(d.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
+
+const SCHEDULING_OVERLAP = `ce.start_time < ? AND ce.end_time > ? AND ce.status != 'CANCELLED'`;
+
+async function validateSchedulingConflicts(
+    start: string,
+    end: string,
+    options: {
+        vehicleId?: number | null;
+        userIds?: number[];
+        excludeEventId?: number;
+    }
+): Promise<string | null> {
+    const startTime = formatMysqlDateTime(start);
+    const endTime = formatMysqlDateTime(end);
+    const { vehicleId, userIds = [], excludeEventId } = options;
+    const excludeClause = excludeEventId ? ' AND ce.id != ?' : '';
+    const excludeParams = excludeEventId ? [excludeEventId] : [];
+
+    if (vehicleId) {
+        const [vehicleConflicts] = await pool.execute(
+            `SELECT ce.id, ce.title, v.registration_number, v.brand, v.model
+             FROM calendar_events ce
+             LEFT JOIN vehicles v ON ce.vehicle_id = v.id
+             WHERE ce.vehicle_id = ? AND ${SCHEDULING_OVERLAP}${excludeClause}
+             LIMIT 1`,
+            [vehicleId, endTime, startTime, ...excludeParams]
+        );
+        if ((vehicleConflicts as any[]).length > 0) {
+            const c = (vehicleConflicts as any[])[0];
+            const label = c.registration_number || `${c.brand || ''} ${c.model || ''}`.trim() || 'vehicul';
+            return `Vehiculul ${label} este deja folosit la evenimentul „${c.title}” în același interval orar.`;
+        }
+    }
+
+    const uniqueUserIds = [...new Set(userIds.map(Number).filter((id) => Number.isFinite(id) && id > 0))];
+    if (uniqueUserIds.length > 0) {
+        const placeholders = uniqueUserIds.map(() => '?').join(',');
+
+        const [assignmentConflicts] = await pool.execute(
+            `SELECT ce.title, u.first_name, u.last_name
+             FROM event_assignments ea
+             JOIN calendar_events ce ON ea.event_id = ce.id
+             JOIN users u ON ea.user_id = u.id
+             WHERE ea.user_id IN (${placeholders}) AND ${SCHEDULING_OVERLAP}${excludeClause}
+             LIMIT 1`,
+            [...uniqueUserIds, endTime, startTime, ...excludeParams]
+        );
+        if ((assignmentConflicts as any[]).length > 0) {
+            const c = (assignmentConflicts as any[])[0];
+            return `${c.first_name} ${c.last_name} este deja asignat la „${c.title}” în același interval orar.`;
+        }
+
+        const [creatorConflicts] = await pool.execute(
+            `SELECT ce.title, u.first_name, u.last_name
+             FROM calendar_events ce
+             JOIN users u ON ce.user_id = u.id
+             WHERE ce.user_id IN (${placeholders}) AND ${SCHEDULING_OVERLAP}${excludeClause}
+             LIMIT 1`,
+            [...uniqueUserIds, endTime, startTime, ...excludeParams]
+        );
+        if ((creatorConflicts as any[]).length > 0) {
+            const c = (creatorConflicts as any[])[0];
+            return `${c.first_name} ${c.last_name} are deja evenimentul „${c.title}” în același interval orar.`;
+        }
+    }
+
+    return null;
+}
+
 export const CalendarController = {
     getEvents: async (req: Request, res: Response) => {
         try {
@@ -175,18 +254,16 @@ export const CalendarController = {
                 transportData
             });
 
-            // Convert ISO dates to MySQL datetime format, preserving local time
-            const formatDate = (date: string) => {
-                const d = new Date(date);
-                // Folosim getFullYear, getMonth, etc. pentru a păstra timezone-ul local
-                const year = d.getFullYear();
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                const hours = String(d.getHours()).padStart(2, '0');
-                const minutes = String(d.getMinutes()).padStart(2, '0');
-                const seconds = String(d.getSeconds()).padStart(2, '0');
-                return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-            };
+            const formattedStart = formatMysqlDateTime(start);
+            const formattedEnd = formatMysqlDateTime(end);
+
+            const schedulingError = await validateSchedulingConflicts(start, end, {
+                vehicleId: vehicleId || null,
+                userIds: [...(assignedUsers || []), userId].filter(Boolean) as number[],
+            });
+            if (schedulingError) {
+                return res.status(409).json({ message: schedulingError });
+            }
 
             const [result] = await pool.execute(
                 `INSERT INTO calendar_events 
@@ -195,8 +272,8 @@ export const CalendarController = {
                 [
                     title, 
                     description || null, 
-                    formatDate(start), 
-                    formatDate(end), 
+                    formattedStart, 
+                    formattedEnd, 
                     type, 
                     status || 'PLANNED', 
                     userId, 
@@ -657,18 +734,21 @@ export const CalendarController = {
                 return res.status(403).json({ message: 'Nu aveți permisiunea de a modifica acest eveniment' });
             }
 
-            // Convert ISO dates to MySQL datetime format if provided, preserving local time
-            const formatDate = (date: string) => {
-                const d = new Date(date);
-                // Folosim getFullYear, getMonth, etc. pentru a păstra timezone-ul local
-                const year = d.getFullYear();
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                const hours = String(d.getHours()).padStart(2, '0');
-                const minutes = String(d.getMinutes()).padStart(2, '0');
-                const seconds = String(d.getSeconds()).padStart(2, '0');
-                return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-            };
+            const eventStart = start ? formatMysqlDateTime(start) : event.start_time;
+            const eventEnd = end ? formatMysqlDateTime(end) : event.end_time;
+
+            const schedulingError = await validateSchedulingConflicts(
+                start || event.start_time,
+                end || event.end_time,
+                {
+                    vehicleId: vehicleId ?? event.vehicle_id,
+                    userIds: [...(assignedUsers || []), event.user_id].filter(Boolean) as number[],
+                    excludeEventId: parseInt(id, 10),
+                }
+            );
+            if (schedulingError) {
+                return res.status(409).json({ message: schedulingError });
+            }
 
             await pool.execute(
                 `UPDATE calendar_events 
@@ -679,8 +759,8 @@ export const CalendarController = {
                 [
                     title, 
                     description || null, 
-                    start ? formatDate(start) : event.start_time,
-                    end ? formatDate(end) : event.end_time,
+                    eventStart,
+                    eventEnd,
                     type, 
                     status, 
                     departmentId || null, 
@@ -2022,6 +2102,66 @@ export const CalendarController = {
 
             console.log('📦 Found materials:', (materials as any[]).length);
             
+            // Pentru evenimente de transport fără materiale înregistrate, folosim metadata
+            if ((materials as any[]).length === 0) {
+                const [eventRows] = await pool.execute<any[]>(
+                    'SELECT type, metadata FROM calendar_events WHERE id = ?',
+                    [id]
+                );
+                if (eventRows.length > 0) {
+                    const event = eventRows[0];
+                    const transportTypes = ['TRANSPORT_DELIVERY', 'TRANSPORT_PICKUP', 'SUPPLY_ORDER'];
+                    if (transportTypes.includes(event.type) && event.metadata) {
+                        let metadata = event.metadata;
+                        if (typeof metadata === 'string') {
+                            try { metadata = JSON.parse(metadata); } catch { metadata = null; }
+                        }
+                        if (metadata?.product_id) {
+                            const [productRows] = await pool.execute<any[]>(`
+                                SELECT 
+                                    p.id as product_id,
+                                    p.name as product_name,
+                                    p.code as product_code,
+                                    p.unit as product_unit,
+                                    p.unit_price as product_unit_price,
+                                    (SELECT COALESCE(SUM(i.quantity), 0) FROM inventory i WHERE i.product_id = p.id) as product_current_stock,
+                                    pc.name as product_category_name
+                                FROM products p
+                                LEFT JOIN product_categories pc ON p.category_id = pc.id
+                                WHERE p.id = ?
+                            `, [metadata.product_id]);
+
+                            if (productRows.length > 0) {
+                                const product = productRows[0];
+                                const quantity = metadata.quantity || metadata.product_quantity || 0;
+                                const unitPrice = metadata.unit_price || metadata.product_price || product.product_unit_price || 0;
+                                const virtualMaterial = {
+                                    id: `meta-${id}`,
+                                    event_id: parseInt(id as string),
+                                    product_id: metadata.product_id,
+                                    product_name: metadata.product_name || product.product_name,
+                                    product_code: product.product_code,
+                                    product_unit: metadata.unit || product.product_unit || 'buc',
+                                    product_unit_price: unitPrice,
+                                    product_current_stock: product.product_current_stock,
+                                    product_category_name: product.product_category_name,
+                                    quantity,
+                                    unit_cost: unitPrice,
+                                    notes: metadata.request_number ? `Cerere ${metadata.request_number}` : 'Livrare transport',
+                                    operation_type: 'RECEPTION',
+                                    status: metadata.stockUpdated ? 'COMPLETED' : 'PLANNED',
+                                    created_at: metadata.approved_at || new Date().toISOString(),
+                                    created_by_name: metadata.requester_name || 'Sistem',
+                                    from_metadata: true
+                                };
+                                console.log('📦 Returning material from transport metadata');
+                                return res.json([virtualMaterial]);
+                            }
+                        }
+                    }
+                }
+            }
+            
             // Log pentru debugging calculul stocului
             (materials as any[]).forEach((material, index) => {
               console.log(`📊 Material ${index + 1}: ${material.product_name}`);
@@ -2425,17 +2565,18 @@ export const CalendarController = {
             }
 
             const event = events[0];
+            const transportTypes = ['SUPPLY_ORDER', 'TRANSPORT_DELIVERY', 'TRANSPORT_PICKUP'];
 
-            if (event.type !== 'SUPPLY_ORDER') {
+            if (!transportTypes.includes(event.type)) {
                 return res.status(400).json({ message: 'Acest eveniment nu este o comandă de transport' });
             }
 
             // Parse metadata pentru a obține produsele
-            let metadata;
+            let metadata: Record<string, any> = {};
             try {
-                metadata = typeof event.metadata === 'string' ? JSON.parse(event.metadata) : event.metadata;
+                metadata = typeof event.metadata === 'string' ? JSON.parse(event.metadata) : (event.metadata || {});
             } catch (error) {
-                return res.status(400).json({ message: 'Metadata invalid' });
+                metadata = {};
             }
 
             // Verifică dacă stocul a fost deja actualizat
@@ -2446,11 +2587,22 @@ export const CalendarController = {
                 });
             }
 
-            // Obține produsele din event_transport_orders
-            const [orderItems] = await pool.execute<any[]>(
+            // Obține produsele din event_transport_orders sau din metadata
+            let orderItems: any[] = [];
+            const [transportOrderItems] = await pool.execute<any[]>(
                 'SELECT * FROM event_transport_orders WHERE event_id = ?',
                 [id]
             );
+            orderItems = transportOrderItems;
+
+            if (orderItems.length === 0 && metadata?.product_id) {
+                orderItems = [{
+                    product_id: metadata.product_id,
+                    product_name: metadata.product_name,
+                    quantity: metadata.quantity || metadata.product_quantity,
+                    unit_price: parseFloat(metadata.unit_price || metadata.product_price || '0')
+                }];
+            }
 
             if (orderItems.length === 0) {
                 return res.status(400).json({ message: 'Nu există produse în comandă' });
@@ -2535,10 +2687,12 @@ export const CalendarController = {
             }
 
             // Actualizează statusul evenimentului la COMPLETED
+            const finalizedAt = new Date().toISOString();
             const updatedMetadata = {
                 ...metadata,
                 deliveryStatus: 'DELIVERED',
-                completedAt: new Date().toISOString(),
+                completedAt: finalizedAt,
+                finalizedAt,
                 completedBy: req.user.id,
                 stockUpdated: true
             };
@@ -2547,6 +2701,16 @@ export const CalendarController = {
                 'UPDATE calendar_events SET status = ?, metadata = ? WHERE id = ?',
                 ['COMPLETED', JSON.stringify(updatedMetadata), id]
             );
+
+            // Marchează materialele evenimentului ca finalizate
+            try {
+                await pool.execute(
+                    `UPDATE event_stock_operations SET status = 'COMPLETED' WHERE event_id = ? AND status IN ('PLANNED', 'IN_PROGRESS')`,
+                    [id]
+                );
+            } catch (stockOpUpdateError) {
+                console.warn('⚠️ Could not update event stock operations status:', stockOpUpdateError);
+            }
 
             // Trimite notificare către magazioner
             try {
@@ -2602,7 +2766,8 @@ export const CalendarController = {
             res.json({
                 success: true,
                 message: 'Comanda a fost finalizată și stocul a fost actualizat cu succes',
-                stockUpdates: stockUpdates
+                stockUpdates: stockUpdates,
+                finalizedAt
             });
         } catch (error) {
             console.error('❌ Error finalizing transport order:', error);
