@@ -4,6 +4,10 @@ export type BudgetIndicatorType = 'REVENUE' | 'EXPENSE';
 
 export type BudgetRowKind = 'LEAF' | 'GROUP' | 'TITLE';
 
+// Sursa de finanțare a bugetului anual: documentul oficial "BUGETUL PE ANUL ..."
+// conține de fapt 2 bugete separate, pe aceleași coduri, cu sume diferite.
+export type BudgetFundingSource = 'OWN_REVENUE' | 'STATE_BUDGET';
+
 export type BudgetIndicatorRow = {
   indicator_id: number;
   indicator_type: BudgetIndicatorType;
@@ -44,13 +48,13 @@ export const BudgetService = {
     return res.data;
   },
 
-  async getAnnual(year: number, type: BudgetIndicatorType) {
-    const res = await api.get('/budget/annual', { params: { year, type } });
-    return res.data as { success: boolean; data: AnnualBudgetRow[]; year: number; type: BudgetIndicatorType };
+  async getAnnual(year: number, type: BudgetIndicatorType, fundingSource: BudgetFundingSource = 'OWN_REVENUE') {
+    const res = await api.get('/budget/annual', { params: { year, type, funding_source: fundingSource } });
+    return res.data as { success: boolean; data: AnnualBudgetRow[]; year: number; type: BudgetIndicatorType; funding_source: BudgetFundingSource };
   },
 
-  async saveAnnual(year: number, items: Array<{ indicator_id: number; amount: number }>) {
-    const res = await api.put(`/budget/annual/${year}`, { items });
+  async saveAnnual(year: number, items: Array<{ indicator_id: number; amount: number }>, fundingSource: BudgetFundingSource = 'OWN_REVENUE') {
+    const res = await api.put(`/budget/annual/${year}`, { items, funding_source: fundingSource });
     return res.data;
   },
 

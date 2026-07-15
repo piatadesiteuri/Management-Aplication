@@ -51,6 +51,7 @@ import {
   FiActivity,
   FiShield,
   FiDroplet,
+  FiTruck,
 } from 'react-icons/fi';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -141,6 +142,7 @@ export default function UserLayout({ children }: UserLayoutProps) {
     { name: 'Furnizori', icon: FiUsers, path: '/user/supply/suppliers', requiredPermissions: ['supply.view'] },
     { name: 'Produse', icon: FiPackage, path: '/user/supply/products', requiredPermissions: ['supply.view'] },
     { name: 'Stoc', icon: FiDatabase, path: '/user/supply/inventory', requiredPermissions: ['supply.view'] },
+    { name: 'Comenzi Transport', icon: FiTruck, path: '/user/supply/transport-orders', requiredPermissions: ['supply.view'] },
     { name: 'Farmacie', icon: FiPackage, path: '/user/pharmacy', requiredPermissions: ['pharmacy.view'] },
     { name: 'Profil', icon: FiUser, path: '/user/profile', requiredPermissions: ['profile.view'] },
   ].filter((item) =>

@@ -46,6 +46,7 @@ import { DSPPermissionService } from '../../services/DSPPermissionService'
 import { useAuth } from '../../hooks/useAuth'
 import EventModal from './EventModal'
 import TransportOrderDocumentWithData from './TransportOrderDocumentWithData'
+import NirDocumentWithData from './NirDocumentWithData'
 import ConfirmDeleteModal from './ConfirmDeleteModal'
 import EventAssignments from './EventAssignments'
 import EventDocuments from './EventDocuments'
@@ -1977,6 +1978,20 @@ export default function Calendar({ departmentId }: CalendarProps) {
                     </ScaleFade>
                   )}
 
+                  {/* NIR (Nota de Receptie si Constatare Diferente) - apare doar după finalizarea livrării */}
+                  {isTransportEventType(selectedEvent?.type) && isEventFinalized(selectedEvent?.metadata) && (
+                    <ScaleFade in={true} initialScale={0.9}>
+                      <Box mb={2}>
+                        <Heading size="sm" mb={2} color={useColorModeValue('gray.700', 'gray.200')}>
+                          📋 NIR - Nota de Recepție și Constatare Diferențe
+                        </Heading>
+                        <NirDocumentWithData
+                          eventId={Number(selectedEvent.id)}
+                          eventTitle={selectedEvent.title}
+                        />
+                      </Box>
+                    </ScaleFade>
+                  )}
 
                   {/* Istoric și Timestamps */}
                   <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>

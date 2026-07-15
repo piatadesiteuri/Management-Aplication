@@ -11,6 +11,7 @@ async function run() {
   const sqlPaths = [
     path.join(__dirname, '../db/migrations/add_budget_execution.sql'),
     path.join(__dirname, '../db/migrations/alter_budget_indicators_meta.sql'),
+    path.join(__dirname, '../db/migrations/add_budget_funding_source.sql'),
     path.join(__dirname, '../db/migrations/seed_budget_expense_cont_executie.sql'),
     path.join(__dirname, '../db/migrations/seed_budget_annual_indicators_complete.sql'),
   ];

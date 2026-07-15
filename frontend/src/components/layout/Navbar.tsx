@@ -170,6 +170,13 @@ const NAV_ITEMS: Array<NavItem> = [
         requiredPermissions: ['supply.view'],
       },
       {
+        label: 'Comenzi Transport',
+        subLabel: 'Finalizează livrări și emite NIR',
+        href: '/admin/supply/transport-orders',
+        icon: FiTruck,
+        requiredPermissions: ['supply.view'],
+      },
+      {
         label: 'Cereri Materiale',
         subLabel: 'Aprobă sau respinge cererile de la magazioneri',
         href: '/admin/material-requests',

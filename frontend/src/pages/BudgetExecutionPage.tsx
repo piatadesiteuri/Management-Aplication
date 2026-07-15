@@ -54,7 +54,13 @@ import {
 import { FiDownload, FiPlus, FiRefreshCw, FiSearch } from 'react-icons/fi';
 import { useDropzone } from 'react-dropzone';
 import { pdfjs } from 'react-pdf';
-import { BudgetService, type AnnualBudgetRow, type BudgetIndicatorType, type BudgetRowKind, type ExecutionRow } from '../services/BudgetService';
+import * as XLSX from 'xlsx-js-style';
+import { BudgetService, type AnnualBudgetRow, type BudgetFundingSource, type BudgetIndicatorType, type BudgetRowKind, type ExecutionRow } from '../services/BudgetService';
+
+const FUNDING_SOURCE_LABEL: Record<BudgetFundingSource, string> = {
+  OWN_REVENUE: 'Venituri proprii',
+  STATE_BUDGET: 'Buget de stat',
+};
 
 // react-pdf / pdf.js worker (Vite)
 try {
@@ -72,19 +78,6 @@ function toMoney(v: any) {
 
 function formatMoney(n: number) {
   return new Intl.NumberFormat('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
-}
-
-function downloadCsv(filename: string, rows: string[][]) {
-  const csv = ['\uFEFF' + rows.map(r => r.map(x => `"${String(x ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')].join('');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
 }
 
 function parseExcelPaste(text: string) {
@@ -325,29 +318,6 @@ function computeExecutionDisplay(rows: ExecRowWithMeta[]) {
   return norm.sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
 }
 
-function escapeHtml(s: any) {
-  return String(s ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function openPrintPdf(html: string, title: string) {
-  const w = window.open('', '_blank');
-  if (!w) return;
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-  w.document.title = title;
-  // give browser a moment to layout before printing
-  setTimeout(() => {
-    w.focus();
-    w.print();
-  }, 250);
-}
-
 export default function BudgetExecutionPage() {
   const toast = useToast();
   const muted = useColorModeValue('gray.600', 'gray.300');
@@ -358,11 +328,14 @@ export default function BudgetExecutionPage() {
 
   const [loading, setLoading] = useState(true);
   const [annualType, setAnnualType] = useState<BudgetIndicatorType>('REVENUE');
+  const [fundingSource, setFundingSource] = useState<BudgetFundingSource>('OWN_REVENUE');
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [annualRows, setAnnualRows] = useState<AnnualBudgetRow[]>([]);
   const [annualDirty, setAnnualDirty] = useState(false);
 
   const [execDate, setExecDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [execCapitol, setExecCapitol] = useState('6610');
+  const [execSubcapitol, setExecSubcapitol] = useState('');
   const [execRows, setExecRows] = useState<ExecutionRow[]>([]);
   const [execDirty, setExecDirty] = useState(false);
   const [query, setQuery] = useState('');
@@ -602,7 +575,7 @@ export default function BudgetExecutionPage() {
   const execEffectiveTotal = useMemo(() => filteredExec.reduce((s, r) => s + toMoney(r.expenses_effective), 0), [filteredExec]);
 
   const loadAnnual = async () => {
-    const res = await BudgetService.getAnnual(year, annualType);
+    const res = await BudgetService.getAnnual(year, annualType, fundingSource);
     setAnnualRows(res.data || []);
     setAnnualDirty(false);
   };
@@ -633,7 +606,16 @@ export default function BudgetExecutionPage() {
   useEffect(() => {
     void loadAnnual();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [year, annualType]);
+  }, [year, annualType, fundingSource]);
+
+  // Bugetul de stat nu are secțiune de venituri proprii în formularul oficial —
+  // dacă utilizatorul schimbă sursa pe "Buget de stat" forțăm tipul pe Cheltuieli.
+  useEffect(() => {
+    if (fundingSource === 'STATE_BUDGET' && annualType === 'REVENUE') {
+      setAnnualType('EXPENSE');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fundingSource]);
 
   useEffect(() => {
     // Reset dirty state immediately when date changes (old data is no longer relevant)
@@ -656,7 +638,7 @@ export default function BudgetExecutionPage() {
   const handleSaveAnnual = async () => {
     try {
       const items = annualRows.map(r => ({ indicator_id: r.indicator_id, amount: toMoney(r.amount) }));
-      await BudgetService.saveAnnual(year, items);
+      await BudgetService.saveAnnual(year, items, fundingSource);
       toast({ title: 'Salvat', description: 'Bugetul anual a fost salvat', status: 'success', duration: 2500, isClosable: true });
       setAnnualDirty(false);
     } catch (e) {
@@ -714,155 +696,233 @@ export default function BudgetExecutionPage() {
     return date.toISOString().slice(0, 10);
   }, [execDate]);
 
-  const handleExportAnnual = () => {
-    const rows: string[][] = [
-      ['Capitol', 'Subcapitol', 'Paragraf', 'Cod indicator', 'Denumirea indicatorilor', 'CA/CB', 'Buget alocat'],
-      ...filteredAnnual.map(r => [
-        r.capitol ?? '',
-        r.subcapitol ?? '',
-        r.paragraf ?? '',
-        r.indicator_code,
-        r.name,
-        r.ca_cb ?? '',
-        String(toMoney(r.amount)),
-      ]),
-      ['', '', '', '', 'TOTAL', '', String(annualTotal)],
+  const handleExportAnnualXlsx = () => {
+    const wb = XLSX.utils.book_new();
+    const data: any[][] = [];
+    const merges: any[] = [];
+    let r = 0;
+    const pushRow = (row: any[]) => { data.push(row); return r++; };
+    const merge = (row: number, c1: number, c2: number) => merges.push({ s: { r: row, c: c1 }, e: { r: row, c: c2 } });
+
+    const COLS = 6; // Capitol | Subcap. | Paragraf | Denumirea indicatorilor | CA/CB | Buget
+
+    const rowUnit = pushRow(['UNITATEA', null, null, null, null, null]);
+    merge(rowUnit, 0, 5);
+
+    const rowTitle = pushRow([`BUGETUL PE ANUL ${year}`, null, null, null, null, null]);
+    merge(rowTitle, 0, 5);
+
+    const rowSection = pushRow([FUNDING_SOURCE_LABEL[fundingSource].toUpperCase(), null, null, null, null, null]);
+    merge(rowSection, 0, 5);
+
+    pushRow([null]);
+
+    const headerRow = pushRow(['Capitol', 'Subcap.', 'Paragraf', 'Denumirea indicatorilor', 'CA/CB', 'Buget']);
+    const codeRow = pushRow(['B', 'C', 'D', 'E', '', annualType === 'REVENUE' ? '3' : '4']);
+
+    const itemsStart = r;
+    filteredAnnual.forEach((row) => {
+      pushRow([
+        row.capitol ?? '',
+        row.subcapitol ?? '',
+        row.paragraf ?? '',
+        row.name,
+        row.ca_cb ?? '',
+        Number(toMoney(row.amount).toFixed(2)),
+      ]);
+    });
+    const itemsEnd = r - 1;
+
+    pushRow([null]);
+    const totalRow = pushRow(['', '', '', 'TOTAL', '', Number(annualTotal.toFixed(2))]);
+
+    pushRow([null]);
+    pushRow([null]);
+
+    const rowSignTitle = pushRow(['Conducătorul instituției', null, null, 'Conducătorul compartimentului financiar-contabil', null, null]);
+    merge(rowSignTitle, 0, 2);
+    merge(rowSignTitle, 3, 5);
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!merges'] = merges;
+    ws['!cols'] = [
+      { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 58 }, { wch: 8 }, { wch: 16 },
     ];
-    downloadCsv(`buget-${annualType.toLowerCase()}-${year}.csv`, rows);
+
+    const thin = { style: 'thin', color: { rgb: '000000' } };
+    const fullBorder = { top: thin, bottom: thin, left: thin, right: thin };
+
+    const setStyle = (row: number, col: number, style: any) => {
+      const addr = XLSX.utils.encode_cell({ r: row, c: col });
+      if (!ws[addr]) ws[addr] = { t: 's', v: '' };
+      ws[addr].s = { ...(ws[addr].s || {}), ...style };
+    };
+
+    const applyGridBorder = (rowStart: number, rowEnd: number, colStart: number, colEnd: number) => {
+      for (let R = rowStart; R <= rowEnd; R++) {
+        for (let C = colStart; C <= colEnd; C++) {
+          const addr = XLSX.utils.encode_cell({ r: R, c: C });
+          if (!ws[addr]) ws[addr] = { t: 's', v: '' };
+          if (!ws[addr].s) ws[addr].s = {};
+          ws[addr].s.alignment = { vertical: 'center', horizontal: C === 3 ? 'left' : 'center', wrapText: true };
+          ws[addr].s.border = fullBorder;
+        }
+      }
+    };
+
+    applyGridBorder(headerRow, totalRow, 0, COLS - 1);
+
+    setStyle(rowUnit, 0, { font: { bold: true, sz: 11 } });
+    setStyle(rowTitle, 0, { font: { bold: true, sz: 13 }, alignment: { horizontal: 'center' } });
+    setStyle(rowSection, 0, { font: { bold: true, sz: 12 }, alignment: { horizontal: 'center' } });
+    for (let c = 0; c < COLS; c++) {
+      setStyle(headerRow, c, { font: { bold: true, sz: 9 }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true } });
+      setStyle(codeRow, c, { font: { bold: true, sz: 8, italic: true }, alignment: { horizontal: 'center', vertical: 'center' } });
+    }
+
+    filteredAnnual.forEach((row, i) => {
+      const R = itemsStart + i;
+      const kind = normalizeRowKind((row as any).row_kind);
+      setStyle(R, 5, { alignment: { horizontal: 'right' } });
+      if (kind !== 'LEAF') {
+        for (let c = 0; c < COLS; c++) setStyle(R, c, { font: { bold: true } });
+      }
+    });
+    void itemsEnd;
+
+    setStyle(totalRow, 3, { font: { bold: true }, alignment: { horizontal: 'right' } });
+    setStyle(totalRow, 5, { font: { bold: true }, alignment: { horizontal: 'right' } });
+
+    setStyle(rowSignTitle, 0, { font: { bold: true, sz: 10 }, alignment: { horizontal: 'center', wrapText: true } });
+    setStyle(rowSignTitle, 3, { font: { bold: true, sz: 10 }, alignment: { horizontal: 'center', wrapText: true } });
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Buget');
+    const sourceTag = fundingSource === 'OWN_REVENUE' ? 'venituri-proprii' : 'buget-stat';
+    XLSX.writeFile(wb, `Buget_${sourceTag}_${annualType.toLowerCase()}_${year}.xlsx`);
   };
 
-  const handleExportExecutionPdf = () => {
-    // Export full form (all rows), not just current filter
-    const rows = displayExec;
-    const pageTitle = `Cont de executie - Cheltuieli - ${execDate}`;
+  const handleExportExecutionXlsx = () => {
+    const rows = displayExec; // export întregul formular, nu doar filtrul curent
+    const wb = XLSX.utils.book_new();
+    const data: any[][] = [];
+    const merges: any[] = [];
+    let r = 0;
+    const pushRow = (row: any[]) => { data.push(row); return r++; };
+    const merge = (row: number, c1: number, c2: number) => merges.push({ s: { r: row, c: c1 }, e: { r: row, c: c2 } });
 
-    const tableRows = rows.map((r: any) => {
-      const kind = normalizeRowKind(r.row_kind);
+    const COLS = 9; // A | B | 1 | 2 | 3 | 4 | 5 | 6=4-5 | 7
+
+    const rowAnexa = pushRow([null, null, null, null, null, null, null, null, 'Anexa 7']);
+    merge(rowAnexa, 0, 7);
+
+    const rowTitle = pushRow(['CONTUL DE EXECUȚIE AL INSTITUȚIILOR PUBLICE - Cheltuieli', null, null, null, null, null, null, null, null]);
+    merge(rowTitle, 0, 8);
+
+    const rowDate = pushRow([`la data de ${new Date(execDate).toLocaleDateString('ro-RO')}`, null, null, null, null, null, null, null, '-lei-']);
+    merge(rowDate, 0, 7);
+
+    const rowCod = pushRow([`Cod 21     Capitol ${execCapitol || '.'.repeat(20)}     Subcapitol ${execSubcapitol || '.'.repeat(20)}`, null, null, null, null, null, null, null, null]);
+    merge(rowCod, 0, 8);
+
+    pushRow([null]);
+
+    const headerRow1 = pushRow(['DENUMIREA INDICATORILOR*)', 'Cod\nindicator', 'Credite bugetare', null, 'Angajamente\nbugetare', 'Angajamente\nlegale', 'Plăți\nefectuate', 'Angajamente\nlegale de platit', 'Cheltuieli\nefective']);
+    merge(headerRow1, 2, 3);
+    const headerRow2 = pushRow([null, null, 'inițiale', 'trimestriale/\ndefinitive', null, null, null, null, null]);
+    merge(headerRow2, 0, 0);
+    merge(headerRow2, 1, 1);
+    merge(headerRow2, 4, 4);
+    merge(headerRow2, 5, 5);
+    merge(headerRow2, 6, 6);
+    merge(headerRow2, 7, 7);
+    merge(headerRow2, 8, 8);
+    const headerRow3 = pushRow(['A', 'B', '1', '2', '3', '4', '5', '6=4-5', '7']);
+
+    const itemsStart = r;
+    rows.forEach((row: any) => {
+      const kind = normalizeRowKind(row.row_kind);
       const isLeaf = kind === 'LEAF';
-      const indent = Number.isFinite(Number(r.indent_level)) ? Number(r.indent_level) : 0;
-      const pad = indent * 10;
-
-      const commitmentsLegal = toMoney(r.commitments_legal);
-      const payments = toMoney(r.payments_made);
+      const commitmentsLegal = toMoney(row.commitments_legal);
+      const payments = toMoney(row.payments_made);
       const col6 = commitmentsLegal - payments;
+      const val = (n: any, showZero: boolean) => (!showZero && toMoney(n) === 0 ? null : Number(toMoney(n).toFixed(2)));
+      const code = kind === 'TITLE' && String(row.indicator_code).trim() === 'TOTAL' ? '' : row.indicator_code;
+      pushRow([
+        row.name,
+        code,
+        val(row.credits_initial, isLeaf),
+        val(row.credits_definitive, isLeaf),
+        val(row.commitments_budgetary, isLeaf),
+        val(commitmentsLegal, isLeaf),
+        val(payments, isLeaf),
+        val(col6, false),
+        val(row.expenses_effective, isLeaf),
+      ]);
+    });
+    const itemsEnd = r - 1;
 
-      const fmt = (n: any, showZero: boolean) => {
-        const v = toMoney(n);
-        if (!showZero && v === 0) return '';
-        return formatMoney(v);
-      };
+    pushRow([null]);
+    pushRow([null]);
 
-      return `
-        <tr class="${escapeHtml(kind.toLowerCase())}">
-          <td class="a" style="padding-left:${pad}px;">
-            <div class="name ${kind !== 'LEAF' ? 'bold' : ''}">${escapeHtml(r.name)}</div>
-            ${r.calc_expression && kind !== 'LEAF' ? `<div class="formula">(${escapeHtml(r.calc_expression)})</div>` : ''}
-          </td>
-          <td class="b mono">${escapeHtml(kind === 'TITLE' && String(r.indicator_code).trim() === 'TOTAL' ? '' : r.indicator_code)}</td>
-          <td class="num mono">${fmt(r.credits_initial, isLeaf)}</td>
-          <td class="num mono">${fmt(r.credits_definitive, isLeaf)}</td>
-          <td class="num mono">${fmt(r.commitments_budgetary, isLeaf)}</td>
-          <td class="num mono">${fmt(commitmentsLegal, isLeaf)}</td>
-          <td class="num mono">${fmt(payments, isLeaf)}</td>
-          <td class="num mono">${fmt(col6, false)}</td>
-          <td class="num mono">${fmt(r.expenses_effective, isLeaf)}</td>
-        </tr>
-      `;
-    }).join('');
+    const rowSignTitle = pushRow(['Conducătorul instituției', null, null, null, null, 'Conducătorul compartimentului financiar-contabil', null, null, null]);
+    merge(rowSignTitle, 0, 3);
+    merge(rowSignTitle, 5, 8);
 
-    const html = `
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>${escapeHtml(pageTitle)}</title>
-    <style>
-      @page { size: A4 landscape; margin: 10mm; }
-      * { box-sizing: border-box; }
-      body { font-family: Arial, Helvetica, sans-serif; color: #000; }
-      .hdr { text-align: center; font-weight: 700; font-size: 12px; margin-bottom: 6px; }
-      .subhdr { display:flex; justify-content: space-between; font-size: 10px; margin-bottom: 6px; }
-      .subhdr .left span { display:inline-block; min-width: 54px; }
-      table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-      th, td { border: 1px solid #000; padding: 3px 4px; vertical-align: top; }
-      th { font-size: 9px; text-transform: uppercase; }
-      td { font-size: 9px; }
-      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-      .num { text-align: right; white-space: nowrap; }
-      .name.bold { font-weight: 700; }
-      .formula { font-size: 8px; color: #333; }
-      tr.title td { background: #f3f3f3; font-weight: 700; }
-      tr.group td { background: #fafafa; font-weight: 700; }
-      col.a { width: 44%; }
-      col.b { width: 8%; }
-      col.c1 { width: 7%; }
-      col.c2 { width: 9%; }
-      col.c3 { width: 7%; }
-      col.c4 { width: 7%; }
-      col.c5 { width: 7%; }
-      col.c6 { width: 9%; }
-      col.c7 { width: 7%; }
-    </style>
-  </head>
-  <body>
-    <div class="hdr">CONTUL DE EXECUȚIE AL INSTITUȚIILOR PUBLICE – Cheltuieli</div>
-    <div class="subhdr">
-      <div class="left">
-        <span>Cod 21</span> &nbsp;&nbsp; Capitol: __________ &nbsp;&nbsp; Subcapitol: __________
-      </div>
-      <div class="right">
-        la data de: <strong>${escapeHtml(execDate)}</strong>
-      </div>
-    </div>
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!merges'] = merges;
+    ws['!cols'] = [
+      { wch: 46 }, { wch: 10 }, { wch: 11 }, { wch: 13 }, { wch: 11 },
+      { wch: 11 }, { wch: 11 }, { wch: 13 }, { wch: 11 },
+    ];
 
-    <table>
-      <colgroup>
-        <col class="a" />
-        <col class="b" />
-        <col class="c1" />
-        <col class="c2" />
-        <col class="c3" />
-        <col class="c4" />
-        <col class="c5" />
-        <col class="c6" />
-        <col class="c7" />
-      </colgroup>
-      <thead>
-        <tr>
-          <th rowspan="2">DENUMIREA INDICATORILOR*)</th>
-          <th rowspan="2">COD INDICATOR</th>
-          <th colspan="2">CREDITE BUGETARE</th>
-          <th rowspan="2">ANGAJAMENTE BUGETARE</th>
-          <th rowspan="2">ANGAJAMENTE LEGALE</th>
-          <th rowspan="2">PLĂȚI EFECTUATE</th>
-          <th rowspan="2">ANGAJAMENTE LEGALE DE PLĂTĂ</th>
-          <th rowspan="2">CHELTUIELI EFECTIVE</th>
-        </tr>
-        <tr>
-          <th>inițiale</th>
-          <th>trimestriale/definitive</th>
-        </tr>
-        <tr>
-          <th>A</th>
-          <th>B</th>
-          <th>1</th>
-          <th>2</th>
-          <th>3</th>
-          <th>4</th>
-          <th>5</th>
-          <th>6=4-5</th>
-          <th>7</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${tableRows}
-      </tbody>
-    </table>
-  </body>
-</html>
-`;
+    const thin = { style: 'thin', color: { rgb: '000000' } };
+    const fullBorder = { top: thin, bottom: thin, left: thin, right: thin };
 
-    openPrintPdf(html, pageTitle);
+    const setStyle = (row: number, col: number, style: any) => {
+      const addr = XLSX.utils.encode_cell({ r: row, c: col });
+      if (!ws[addr]) ws[addr] = { t: 's', v: '' };
+      ws[addr].s = { ...(ws[addr].s || {}), ...style };
+    };
+
+    const applyGridBorder = (rowStart: number, rowEnd: number, colStart: number, colEnd: number) => {
+      for (let R = rowStart; R <= rowEnd; R++) {
+        for (let C = colStart; C <= colEnd; C++) {
+          const addr = XLSX.utils.encode_cell({ r: R, c: C });
+          if (!ws[addr]) ws[addr] = { t: 's', v: '' };
+          if (!ws[addr].s) ws[addr].s = {};
+          ws[addr].s.alignment = { vertical: 'center', horizontal: C === 0 ? 'left' : 'center', wrapText: true };
+          ws[addr].s.border = fullBorder;
+        }
+      }
+    };
+
+    applyGridBorder(headerRow1, itemsEnd, 0, COLS - 1);
+
+    setStyle(rowAnexa, 8, { font: { bold: true, sz: 10 } });
+    setStyle(rowTitle, 0, { font: { bold: true, sz: 12 }, alignment: { horizontal: 'center' } });
+    setStyle(rowDate, 0, { font: { sz: 9 }, alignment: { horizontal: 'left' } });
+    setStyle(rowDate, 8, { font: { sz: 9 }, alignment: { horizontal: 'right' } });
+    setStyle(rowCod, 0, { font: { sz: 9 } });
+
+    for (let c = 0; c < COLS; c++) {
+      setStyle(headerRow1, c, { font: { bold: true, sz: 8 }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true } });
+      setStyle(headerRow2, c, { font: { bold: true, sz: 8 }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true } });
+      setStyle(headerRow3, c, { font: { bold: true, sz: 8 }, alignment: { horizontal: 'center', vertical: 'center' } });
+    }
+
+    rows.forEach((row: any, i: number) => {
+      const R = itemsStart + i;
+      const kind = normalizeRowKind(row.row_kind);
+      const indent = Number.isFinite(Number(row.indent_level)) ? Number(row.indent_level) : 0;
+      setStyle(R, 0, { alignment: { horizontal: 'left', indent }, font: kind !== 'LEAF' ? { bold: true } : undefined });
+      for (let c = 1; c <= 8; c++) setStyle(R, c, { alignment: { horizontal: c === 1 ? 'center' : 'right' }, font: kind !== 'LEAF' ? { bold: true } : undefined });
+    });
+
+    setStyle(rowSignTitle, 0, { font: { bold: true, sz: 10 }, alignment: { horizontal: 'center', wrapText: true } });
+    setStyle(rowSignTitle, 5, { font: { bold: true, sz: 10 }, alignment: { horizontal: 'center', wrapText: true } });
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Executie');
+    XLSX.writeFile(wb, `Cont-executie_${execDate}.xlsx`);
   };
 
   const handleImport = async () => {
@@ -1022,13 +1082,13 @@ export default function BudgetExecutionPage() {
         name,
         ca_cb: annualInline.ca_cb.trim(),
       });
-      const annualRes = await BudgetService.getAnnual(year, annualType);
+      const annualRes = await BudgetService.getAnnual(year, annualType, fundingSource);
       setAnnualRows(annualRes.data || []);
       const created = (annualRes.data || []).find(r => String(r.indicator_code).trim() === String(createdCode).trim());
       const amount = toMoney(annualInline.amount);
       if (created && amount !== 0) {
-        await BudgetService.saveAnnual(year, [{ indicator_id: created.indicator_id, amount }]);
-        const reloaded = await BudgetService.getAnnual(year, annualType);
+        await BudgetService.saveAnnual(year, [{ indicator_id: created.indicator_id, amount }], fundingSource);
+        const reloaded = await BudgetService.getAnnual(year, annualType, fundingSource);
         setAnnualRows(reloaded.data || []);
       }
       toast({ title: 'Rând adăugat', description: 'Indicatorul a fost adăugat. Poți edita valorile direct în tabel.', status: 'success', duration: 3000, isClosable: true });
@@ -1107,8 +1167,16 @@ export default function BudgetExecutionPage() {
                       </Text>
                     </Box>
                     <HStack>
+                      <Select
+                        value={fundingSource}
+                        onChange={(e) => setFundingSource(e.target.value as BudgetFundingSource)}
+                        w="200px"
+                      >
+                        <option value="OWN_REVENUE">Sursă: Venituri proprii</option>
+                        <option value="STATE_BUDGET">Sursă: Buget de stat</option>
+                      </Select>
                       <Select value={annualType} onChange={(e) => setAnnualType(e.target.value as BudgetIndicatorType)} w="220px">
-                        <option value="REVENUE">Venituri</option>
+                        <option value="REVENUE" disabled={fundingSource === 'STATE_BUDGET'}>Venituri</option>
                         <option value="EXPENSE">Cheltuieli (alocat)</option>
                       </Select>
                       <Select value={String(year)} onChange={(e) => setYear(Number(e.target.value))} w="140px">
@@ -1116,8 +1184,8 @@ export default function BudgetExecutionPage() {
                           <option key={y} value={String(y)}>{y}</option>
                         ))}
                       </Select>
-                      <Button leftIcon={<FiDownload />} variant="outline" onClick={handleExportAnnual}>
-                        Export
+                      <Button leftIcon={<FiDownload />} variant="outline" onClick={handleExportAnnualXlsx}>
+                        Export Excel
                       </Button>
                       <Button colorScheme="blue" onClick={handleSaveAnnual} isDisabled={!annualDirty}>
                         Salvează
@@ -1133,6 +1201,7 @@ export default function BudgetExecutionPage() {
                 </CardHeader>
                 <CardBody>
                   <HStack mb={4} spacing={3}>
+                    <Badge colorScheme="teal">{FUNDING_SOURCE_LABEL[fundingSource]}</Badge>
                     <Badge colorScheme="purple">{annualType === 'REVENUE' ? 'VENITURI' : 'CHELTUIELI'}</Badge>
                     <Text color={muted} fontSize="sm">
                       Total (filtrat): <strong>{formatMoney(annualTotal)}</strong> lei
@@ -1379,13 +1448,27 @@ export default function BudgetExecutionPage() {
                         Completezi zilnic. Dacă nu există date, poți prelua automat din ziua precedentă.
                       </Text>
                     </Box>
-                    <HStack>
+                    <HStack wrap="wrap">
+                      <Input
+                        placeholder="Capitol"
+                        value={execCapitol}
+                        onChange={(e) => setExecCapitol(e.target.value)}
+                        w="100px"
+                        title="Capitol (ex. 6610) — apare în antetul formularului exportat"
+                      />
+                      <Input
+                        placeholder="Subcapitol"
+                        value={execSubcapitol}
+                        onChange={(e) => setExecSubcapitol(e.target.value)}
+                        w="110px"
+                        title="Subcapitol — apare în antetul formularului exportat"
+                      />
                       <Input type="date" value={execDate} onChange={(e) => setExecDate(e.target.value)} w="190px" />
                       <Button variant="outline" onClick={onCloneConfirmOpen}>
                         Preia ziua precedentă
                       </Button>
-                      <Button leftIcon={<FiDownload />} variant="outline" onClick={handleExportExecutionPdf}>
-                        Export PDF (formular)
+                      <Button leftIcon={<FiDownload />} variant="outline" onClick={handleExportExecutionXlsx}>
+                        Export Excel
                       </Button>
                       <Button colorScheme="blue" onClick={handleSaveExecution} isDisabled={!execDirty}>
                         Salvează

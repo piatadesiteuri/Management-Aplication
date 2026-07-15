@@ -10,6 +10,7 @@ import UserLayout from './layouts/UserLayout';
 import SupplierList from './components/supply/SupplierList';
 import ProductList from './components/supply/ProductList';
 import InventoryList from './components/supply/InventoryList';
+import TransportOrders from './pages/TransportOrders';
 import VehicleList from './components/vehicles/VehicleList';
 import TestVehicles from './pages/TestVehicles';
 import TestSuppliers from './pages/TestSuppliers';
@@ -137,6 +138,7 @@ function App() {
               <Route path="suppliers" element={<PermissionRoute requiredPermissions={['supply.view']} fallbackTo="/user/dashboard"><SupplierList /></PermissionRoute>} />
               <Route path="products" element={<PermissionRoute requiredPermissions={['supply.view']} fallbackTo="/user/dashboard"><ProductList /></PermissionRoute>} />
               <Route path="inventory" element={<PermissionRoute requiredPermissions={['supply.view']} fallbackTo="/user/dashboard"><InventoryList /></PermissionRoute>} />
+              <Route path="transport-orders" element={<PermissionRoute requiredPermissions={['supply.view']} fallbackTo="/user/dashboard"><TransportOrders /></PermissionRoute>} />
             </Route>
             <Route path="portal" element={<PermissionRoute requiredPermissions={['patient_portal.view']} fallbackTo="/user/dashboard"><PatientPortalPage /></PermissionRoute>} />
             <Route path="lims">
@@ -165,6 +167,7 @@ function App() {
               <Route path="suppliers" element={<PermissionRoute requiredPermissions={['supply.view']} fallbackTo="/admin/dashboard"><SupplierList /></PermissionRoute>} />
               <Route path="products" element={<PermissionRoute requiredPermissions={['supply.view']} fallbackTo="/admin/dashboard"><ProductList /></PermissionRoute>} />
               <Route path="inventory" element={<PermissionRoute requiredPermissions={['supply.view']} fallbackTo="/admin/dashboard"><InventoryList /></PermissionRoute>} />
+              <Route path="transport-orders" element={<PermissionRoute requiredPermissions={['supply.view']} fallbackTo="/admin/dashboard"><TransportOrders /></PermissionRoute>} />
             </Route>
             <Route path="users" element={<PermissionRoute requiredPermissions={['users.manage']} fallbackTo="/admin/dashboard"><UserManagement /></PermissionRoute>} />
             <Route path="profile" element={<PermissionRoute requiredPermissions={['profile.view']} fallbackTo="/admin/dashboard"><UserProfile /></PermissionRoute>} />

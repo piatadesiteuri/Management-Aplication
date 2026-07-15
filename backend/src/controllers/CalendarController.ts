@@ -2544,11 +2544,26 @@ export const CalendarController = {
         }
     },
 
-    // Finalizează comanda de transport și actualizează stocul
+    // Finalizează comanda de transport, actualizează stocul și emite NIR
+    // (Nota de Receptie si Constatare Diferente) cu cantitatea/prețul REAL primite.
     finalizeTransportOrder: async (req: Request, res: Response) => {
         try {
             const { id } = req.params;
-            console.log('🎯 Finalizing transport order:', id);
+            const { receivedItems, nir } = req.body as {
+                receivedItems?: { orderItemId?: number; productId?: number; receivedQuantity?: number; receivedUnitPrice?: number }[];
+                nir?: {
+                    invoiceNumber?: string;
+                    invoiceDate?: string;
+                    deliveryNoteNumber?: string;
+                    vehicleNumber?: string;
+                    delegateName?: string;
+                    tvaRate?: number;
+                    commissionMembers?: string[];
+                    receivedByName?: string;
+                    notes?: string;
+                };
+            };
+            console.log('🎯 Finalizing transport order (event):', id);
 
             if (!req.user) {
                 return res.status(401).json({ message: 'Utilizator neautentificat' });
@@ -2590,7 +2605,10 @@ export const CalendarController = {
             // Obține produsele din event_transport_orders sau din metadata
             let orderItems: any[] = [];
             const [transportOrderItems] = await pool.execute<any[]>(
-                'SELECT * FROM event_transport_orders WHERE event_id = ?',
+                `SELECT eto.*, p.unit as product_unit
+                 FROM event_transport_orders eto
+                 LEFT JOIN products p ON eto.product_id = p.id
+                 WHERE eto.event_id = ?`,
                 [id]
             );
             orderItems = transportOrderItems;
@@ -2610,10 +2628,30 @@ export const CalendarController = {
 
             console.log('📦 Processing order items:', orderItems.length);
 
-            // Actualizează stocul pentru fiecare produs
+            // Asociază fiecare linie de comandă cu cantitatea/prețul REAL primite
+            // (introduse de gestionar la recepție). Dacă nu se trimite nimic, se
+            // păstrează valorile comandate (comportament vechi, compatibil).
+            const findReceivedInfo = (item: any) => {
+                const match = (receivedItems || []).find(ri =>
+                    (item.id !== undefined && ri.orderItemId !== undefined && Number(ri.orderItemId) === Number(item.id)) ||
+                    (ri.productId !== undefined && item.product_id !== undefined && Number(ri.productId) === Number(item.product_id))
+                );
+                const receivedQuantity = match?.receivedQuantity !== undefined && match?.receivedQuantity !== null
+                    ? Number(match.receivedQuantity)
+                    : Number(item.quantity);
+                const receivedUnitPrice = match?.receivedUnitPrice !== undefined && match?.receivedUnitPrice !== null
+                    ? Number(match.receivedUnitPrice)
+                    : Number(item.unit_price || 0);
+                return { receivedQuantity, receivedUnitPrice };
+            };
+
+            // Actualizează stocul pentru fiecare produs, folosind cantitatea/prețul REAL primite
             const stockUpdates = [];
+            const nirLineItems: any[] = [];
             for (const item of orderItems) {
                 try {
+                    const { receivedQuantity, receivedUnitPrice } = findReceivedInfo(item);
+
                     // Verifică dacă produsul există în inventory
                     const [inventoryRows] = await pool.execute<any[]>(
                         'SELECT * FROM inventory WHERE product_id = ?',
@@ -2626,18 +2664,18 @@ export const CalendarController = {
                         await pool.execute(
                             `INSERT INTO inventory (product_id, quantity, unit_cost) 
                              VALUES (?, ?, ?)`,
-                            [item.product_id, item.quantity, item.unit_price || 0]
+                            [item.product_id, receivedQuantity, receivedUnitPrice || 0]
                         );
-                        newQuantity = item.quantity;
+                        newQuantity = receivedQuantity;
                         console.log(`✅ Created new inventory entry for product ${item.product_id}: ${newQuantity}`);
             } else {
                         // Actualizează cantitatea existentă
                         const currentInventory = inventoryRows[0];
-                        newQuantity = Number(currentInventory.quantity) + Number(item.quantity);
+                        newQuantity = Number(currentInventory.quantity) + Number(receivedQuantity);
                         
                         // Calculează cost unitar mediu ponderat
                         const currentValue = Number(currentInventory.quantity) * Number(currentInventory.unit_cost);
-                        const addedValue = Number(item.quantity) * Number(item.unit_price || currentInventory.unit_cost);
+                        const addedValue = Number(receivedQuantity) * Number(receivedUnitPrice || currentInventory.unit_cost);
                         const newUnitCost = newQuantity > 0 ? (currentValue + addedValue) / newQuantity : currentInventory.unit_cost;
 
                         await pool.execute(
@@ -2649,6 +2687,26 @@ export const CalendarController = {
                         );
                         console.log(`✅ Updated inventory for product ${item.product_id}: ${currentInventory.quantity} → ${newQuantity}`);
                     }
+
+                    // Persistă cantitatea/prețul REAL primite pe linia comenzii (dacă e o linie reală din DB)
+                    if (item.id !== undefined) {
+                        await pool.execute(
+                            `UPDATE event_transport_orders 
+                             SET received_quantity = ?, received_unit_price = ?, status = 'DELIVERED', processed_by = ?, processed_at = NOW()
+                             WHERE id = ?`,
+                            [receivedQuantity, receivedUnitPrice, req.user.id, item.id]
+                        );
+                    }
+
+                    nirLineItems.push({
+                        product_id: item.product_id,
+                        product_name: item.product_name,
+                        product_unit: item.product_unit || null,
+                        ordered_quantity: Number(item.quantity),
+                        ordered_unit_price: Number(item.unit_price || 0),
+                        received_quantity: receivedQuantity,
+                        received_unit_price: receivedUnitPrice
+                    });
 
                     // Obține inventory_id pentru a crea înregistrare în stock_movements
                     const [inventoryForMovement] = await pool.execute<any[]>(
@@ -2664,10 +2722,10 @@ export const CalendarController = {
                              VALUES (?, 'IN', ?, ?, ?, ?, ?, NOW(), ?)`,
                             [
                                 inventoryForMovement[0].id,
-                                item.quantity,
-                                item.unit_price || 0,
+                                receivedQuantity,
+                                receivedUnitPrice || 0,
                                 `Eveniment #${id}`,
-                                'Finalizare comandă transport',
+                                'Finalizare comandă transport (NIR)',
                                 req.user.id,
                                 `Comandă finalizată: ${event.title}`
                             ]
@@ -2677,7 +2735,7 @@ export const CalendarController = {
                     stockUpdates.push({
                         product_id: item.product_id,
                         product_name: item.product_name,
-                        quantity_added: item.quantity,
+                        quantity_added: receivedQuantity,
                         new_quantity: newQuantity
                     });
                 } catch (error) {
@@ -2701,6 +2759,64 @@ export const CalendarController = {
                 'UPDATE calendar_events SET status = ?, metadata = ? WHERE id = ?',
                 ['COMPLETED', JSON.stringify(updatedMetadata), id]
             );
+
+            // Emite NIR (Nota de Receptie si Constatare Diferente) pentru această recepție
+            let nirRecord: any = null;
+            try {
+                const currentYear = new Date().getFullYear();
+                const [lastNir] = await pool.execute<any[]>(
+                    `SELECT nir_number FROM event_transport_receptions WHERE nir_number LIKE ? ORDER BY id DESC LIMIT 1`,
+                    [`NIR-%/${currentYear}`]
+                );
+                let nextSeq = 1;
+                if (lastNir.length > 0) {
+                    const match = String(lastNir[0].nir_number).match(/\d+/);
+                    if (match) nextSeq = parseInt(match[0], 10) + 1;
+                }
+                const nirNumber = `NIR-${String(nextSeq).padStart(3, '0')}/${currentYear}`;
+                const commissionMembers = nir?.commissionMembers || [];
+
+                await pool.execute(
+                    `INSERT INTO event_transport_receptions
+                     (event_id, nir_number, reception_date, invoice_number, invoice_date, delivery_note_number,
+                      vehicle_number, delegate_name, tva_rate, commission_member_1, commission_member_2, commission_member_3,
+                      received_by_name, notes, created_by)
+                     VALUES (?, ?, CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     ON DUPLICATE KEY UPDATE
+                       nir_number = VALUES(nir_number), reception_date = VALUES(reception_date),
+                       invoice_number = VALUES(invoice_number), invoice_date = VALUES(invoice_date),
+                       delivery_note_number = VALUES(delivery_note_number), vehicle_number = VALUES(vehicle_number),
+                       delegate_name = VALUES(delegate_name), tva_rate = VALUES(tva_rate),
+                       commission_member_1 = VALUES(commission_member_1), commission_member_2 = VALUES(commission_member_2),
+                       commission_member_3 = VALUES(commission_member_3), received_by_name = VALUES(received_by_name),
+                       notes = VALUES(notes)`,
+                    [
+                        id,
+                        nirNumber,
+                        nir?.invoiceNumber || null,
+                        nir?.invoiceDate || null,
+                        nir?.deliveryNoteNumber || null,
+                        nir?.vehicleNumber || null,
+                        nir?.delegateName || null,
+                        nir?.tvaRate !== undefined ? nir.tvaRate : 19,
+                        commissionMembers[0] || null,
+                        commissionMembers[1] || null,
+                        commissionMembers[2] || null,
+                        nir?.receivedByName || null,
+                        nir?.notes || null,
+                        req.user.id
+                    ]
+                );
+
+                const [nirRows] = await pool.execute<any[]>(
+                    'SELECT * FROM event_transport_receptions WHERE event_id = ?',
+                    [id]
+                );
+                nirRecord = nirRows[0] || { nir_number: nirNumber };
+                console.log('✅ NIR emis pentru eveniment:', id, nirRecord.nir_number);
+            } catch (nirError) {
+                console.error('❌ Eroare la generarea NIR:', nirError);
+            }
 
             // Marchează materialele evenimentului ca finalizate
             try {
@@ -2765,8 +2881,10 @@ export const CalendarController = {
 
             res.json({
                 success: true,
-                message: 'Comanda a fost finalizată și stocul a fost actualizat cu succes',
+                message: 'Comanda a fost finalizată, stocul a fost actualizat și NIR-ul a fost emis',
                 stockUpdates: stockUpdates,
+                nir: nirRecord,
+                nirLineItems,
                 finalizedAt
             });
         } catch (error) {
@@ -2850,6 +2968,49 @@ export const CalendarController = {
             console.error('❌ Error fetching transport order items:', error);
             res.status(500).json({ 
                 message: 'Eroare la încărcarea elementelor comenzii',
+                error: process.env.NODE_ENV === 'development' ? error : undefined
+            });
+        }
+    },
+
+    // Preia NIR-ul (cap de document + linii comandat vs primit) pentru un eveniment finalizat
+    getTransportOrderNIR: async (req: Request, res: Response) => {
+        try {
+            const { id } = req.params;
+
+            const [events] = await pool.execute<any[]>(
+                'SELECT id, title, metadata FROM calendar_events WHERE id = ?',
+                [id]
+            );
+            if (events.length === 0) {
+                return res.status(404).json({ message: 'Eveniment negăsit' });
+            }
+
+            const [nirRows] = await pool.execute<any[]>(
+                'SELECT * FROM event_transport_receptions WHERE event_id = ?',
+                [id]
+            );
+
+            const [items] = await pool.execute<any[]>(`
+                SELECT
+                    eto.id, eto.product_id, eto.product_name, eto.quantity as ordered_quantity,
+                    eto.unit_price as ordered_unit_price, eto.received_quantity, eto.received_unit_price,
+                    eto.supplier_name, p.unit as product_unit
+                FROM event_transport_orders eto
+                LEFT JOIN products p ON eto.product_id = p.id
+                WHERE eto.event_id = ?
+                ORDER BY eto.created_at ASC
+            `, [id]);
+
+            res.json({
+                event: events[0],
+                nir: nirRows[0] || null,
+                items
+            });
+        } catch (error) {
+            console.error('❌ Error fetching NIR:', error);
+            res.status(500).json({
+                message: 'Eroare la încărcarea NIR',
                 error: process.env.NODE_ENV === 'development' ? error : undefined
             });
         }

@@ -256,10 +256,31 @@ export class SupplyService {
         return response.data;
     }
 
-    async finalizeTransportOrder(orderId: number, receivedItems: { productId: number; receivedQuantity: number }[]): Promise<any> {
-        console.log('✅ SupplyService.finalizeTransportOrder called:', { orderId, receivedItems });
-        const response = await api.post(`/calendar/transport-orders/${orderId}/finalize`, { receivedItems });
+    async finalizeTransportOrder(
+        eventId: number,
+        receivedItems: { orderItemId?: number; productId?: number; receivedQuantity: number; receivedUnitPrice?: number }[],
+        nir?: {
+            invoiceNumber?: string;
+            invoiceDate?: string;
+            deliveryNoteNumber?: string;
+            vehicleNumber?: string;
+            delegateName?: string;
+            tvaRate?: number;
+            commissionMembers?: string[];
+            receivedByName?: string;
+            notes?: string;
+        }
+    ): Promise<any> {
+        console.log('✅ SupplyService.finalizeTransportOrder called:', { eventId, receivedItems, nir });
+        const response = await api.post(`/calendar/transport-orders/${eventId}/finalize`, { receivedItems, nir });
         console.log('✅ SupplyService.finalizeTransportOrder response:', response.data);
+        return response.data;
+    }
+
+    async getTransportOrderNIR(eventId: number): Promise<any> {
+        console.log('🔍 SupplyService.getTransportOrderNIR called:', { eventId });
+        const response = await api.get(`/calendar/transport-orders/${eventId}/nir`);
+        console.log('✅ SupplyService.getTransportOrderNIR response:', response.data);
         return response.data;
     }
 

@@ -2,6 +2,13 @@
 -- Include TOATE indicatorii conform documentului PDF oficial "BUGETUL PE ANUL 2025"
 -- Idempotent: ON DUPLICATE KEY UPDATE.
 
+-- Corecție cod greșit dintr-o versiune veche a seed-ului (10.02.60 -> 10.02.06,
+-- "Vouchere de vacanta" e subcap 10, paragraf 06, nu 60). Facem UPDATE în loc de
+-- INSERT nou, ca să păstrăm id-ul indicatorului și eventualele alocări deja salvate.
+UPDATE budget_indicators
+SET indicator_code = '10.02.06', paragraf = '06'
+WHERE indicator_type = 'EXPENSE' AND indicator_code = '10.02.60';
+
 INSERT INTO budget_indicators
   (indicator_type, capitol, subcapitol, paragraf, indicator_code, name, ca_cb, row_kind, calc_expression, indent_level, display_order, is_active)
 VALUES
@@ -83,7 +90,7 @@ VALUES
   
   -- Cheltuieli salariale in natura (Subcap 10, Paragraf 02)
   ('EXPENSE', NULL, '10', '02', '10.02', 'Cheltuieli salariale in natura', NULL, 'GROUP', NULL, 2, 2300, TRUE),
-  ('EXPENSE', NULL, '10', '60', '10.02.60', 'Vouchere de vacanta', NULL, 'LEAF', NULL, 3, 2360, TRUE),
+  ('EXPENSE', NULL, '10', '06', '10.02.06', 'Vouchere de vacanta', NULL, 'LEAF', NULL, 3, 2360, TRUE),
   
   -- Contribuții (Subcap 03)
   ('EXPENSE', NULL, '03', NULL, '10.03', 'Contribuții', NULL, 'GROUP', NULL, 2, 3000, TRUE),

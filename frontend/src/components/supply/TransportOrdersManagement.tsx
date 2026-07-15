@@ -48,7 +48,8 @@ import {
   FormControl,
   FormLabel,
   Textarea,
-  Select
+  Select,
+  Input
 } from '@chakra-ui/react';
 import { useState, useEffect } from 'react';
 import { 
@@ -58,8 +59,8 @@ import {
   FiXCircle, 
   FiEye, 
   FiEdit3,
-  FiCalendar,
-  FiUser,
+  FiCalendar, 
+  FiUser, 
   FiMapPin,
   FiDollarSign,
   FiClock,
@@ -67,9 +68,12 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiChevronsLeft,
-  FiChevronsRight
+  FiChevronsRight,
+  FiFileText
 } from 'react-icons/fi';
 import { SupplyService } from '../../services/supply/SupplyService';
+import { useAuth } from '../../hooks/useAuth';
+import NirDocument from './NirDocument';
 
 interface TransportOrder {
   id: number;
@@ -118,13 +122,32 @@ export default function TransportOrdersManagement() {
   const { isOpen: isDetailsOpen, onOpen: onDetailsOpen, onClose: onDetailsClose } = useDisclosure();
   const { isOpen: isFinalizeOpen, onOpen: onFinalizeOpen, onClose: onFinalizeClose } = useDisclosure();
   const { isOpen: isCancelOpen, onOpen: onCancelOpen, onClose: onCancelClose } = useDisclosure();
+  const { isOpen: isNirOpen, onOpen: onNirOpen, onClose: onNirClose } = useDisclosure();
   
-  // Form states for finalization
-  const [receivedItems, setReceivedItems] = useState<{ productId: number; receivedQuantity: number }[]>([]);
+  // Form states for finalization (cantitatea + prețul REAL primite, folosite și pentru NIR)
+  const [receivedItems, setReceivedItems] = useState<{ orderItemId: number; productId: number; receivedQuantity: number; receivedUnitPrice: number }[]>([]);
   const [cancelReason, setCancelReason] = useState('');
+  const [nirForm, setNirForm] = useState({
+    invoiceNumber: '',
+    invoiceDate: new Date().toISOString().split('T')[0],
+    deliveryNoteNumber: '',
+    vehicleNumber: '',
+    delegateName: '',
+    tvaRate: 19,
+    commissionMember1: '',
+    commissionMember2: '',
+    commissionMember3: '',
+    receivedByName: '',
+    notes: ''
+  });
+
+  // Date NIR pentru vizualizare/export (după finalizare sau la cerere pentru comenzi livrate)
+  const [nirData, setNirData] = useState<{ event: any; nir: any; items: any[]; supplierName?: string } | null>(null);
+  const [loadingNir, setLoadingNir] = useState(false);
 
   const toast = useToast();
   const supplyService = new SupplyService();
+  const { user } = useAuth();
   const bgColor = useColorModeValue('white', 'gray.800');
   const cardBg = useColorModeValue('gray.50', 'gray.700');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
@@ -160,11 +183,16 @@ export default function TransportOrdersManagement() {
   };
 
   const loadOrderItems = async (eventId: number) => {
+    return loadOrderItemsAndReturn(eventId);
+  };
+
+  const loadOrderItemsAndReturn = async (eventId: number): Promise<any[]> => {
     try {
       setLoadingItems(true);
       const items = await supplyService.getTransportOrderItems(eventId);
       console.log('📦 Order items loaded:', items);
       setOrderItems(items);
+      return items;
     } catch (error) {
       console.error('❌ Error loading order items:', error);
       toast({
@@ -174,6 +202,7 @@ export default function TransportOrdersManagement() {
         duration: 3000,
         isClosable: true,
       });
+      return [];
     } finally {
       setLoadingItems(false);
     }
@@ -187,16 +216,56 @@ export default function TransportOrdersManagement() {
 
   const handleFinalizeOrder = async (order: TransportOrder) => {
     setSelectedOrder(order);
-    await loadOrderItems(order.event_id);
+    const items = await loadOrderItemsAndReturn(order.event_id);
     
-    // Inițializăm receivedItems cu cantitățile comandate
-    const initialReceivedItems = orderItems.map(item => ({
+    // Inițializăm receivedItems cu cantitatea/prețul comandate (gestionarul le poate ajusta)
+    const initialReceivedItems = items.map((item: any) => ({
+      orderItemId: item.id,
       productId: item.product_id,
-      receivedQuantity: item.quantity
+      receivedQuantity: Number(item.quantity),
+      receivedUnitPrice: Number(item.unit_price || 0)
     }));
     setReceivedItems(initialReceivedItems);
+    setNirForm({
+      invoiceNumber: '',
+      invoiceDate: new Date().toISOString().split('T')[0],
+      deliveryNoteNumber: '',
+      vehicleNumber: '',
+      delegateName: '',
+      tvaRate: 19,
+      commissionMember1: '',
+      commissionMember2: '',
+      commissionMember3: '',
+      receivedByName: '',
+      notes: ''
+    });
     
     onFinalizeOpen();
+  };
+
+  const handleViewNir = async (order: TransportOrder) => {
+    try {
+      setLoadingNir(true);
+      const response = await supplyService.getTransportOrderNIR(order.event_id);
+      setNirData({
+        event: response.event,
+        nir: response.nir,
+        items: response.items,
+        supplierName: order.supplier_name
+      });
+      onNirOpen();
+    } catch (error) {
+      console.error('❌ Error loading NIR:', error);
+      toast({
+        title: 'Eroare',
+        description: 'Nu s-a putut încărca NIR-ul pentru această comandă',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setLoadingNir(false);
+    }
   };
 
   const handleCancelOrder = (order: TransportOrder) => {
@@ -230,18 +299,62 @@ export default function TransportOrdersManagement() {
 
   const finalizeOrder = async () => {
     if (!selectedOrder) return;
+
+    if (!nirForm.receivedByName.trim()) {
+      toast({
+        title: 'Câmp obligatoriu',
+        description: 'Completează numele persoanei care primește în gestiune',
+        status: 'warning',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
     
     try {
-      await supplyService.finalizeTransportOrder(selectedOrder.id, receivedItems);
+      const response = await supplyService.finalizeTransportOrder(
+        selectedOrder.event_id,
+        receivedItems,
+        {
+          invoiceNumber: nirForm.invoiceNumber || undefined,
+          invoiceDate: nirForm.invoiceDate || undefined,
+          deliveryNoteNumber: nirForm.deliveryNoteNumber || undefined,
+          vehicleNumber: nirForm.vehicleNumber || undefined,
+          delegateName: nirForm.delegateName || undefined,
+          tvaRate: nirForm.tvaRate,
+          commissionMembers: [nirForm.commissionMember1, nirForm.commissionMember2, nirForm.commissionMember3].filter(Boolean),
+          receivedByName: nirForm.receivedByName,
+          notes: nirForm.notes || undefined
+        }
+      );
       toast({
         title: 'Succes',
-        description: 'Comanda a fost finalizată și produsele au fost adăugate în inventar',
+        description: `Comanda a fost finalizată, stocul a fost actualizat și NIR ${response.nir?.nir_number || ''} a fost emis`,
         status: 'success',
-        duration: 3000,
+        duration: 4000,
         isClosable: true,
       });
       onFinalizeClose();
       loadOrders();
+
+      // Deschide automat previzualizarea NIR-ului proaspăt emis
+      if (response.nir) {
+        setNirData({
+          event: { title: selectedOrder.event_title },
+          nir: response.nir,
+          items: (response.nirLineItems || []).map((li: any) => ({
+            product_id: li.product_id,
+            product_name: li.product_name,
+            product_unit: li.product_unit,
+            ordered_quantity: li.ordered_quantity,
+            ordered_unit_price: li.ordered_unit_price,
+            received_quantity: li.received_quantity,
+            received_unit_price: li.received_unit_price
+          })),
+          supplierName: selectedOrder.supplier_name
+        });
+        onNirOpen();
+      }
     } catch (error) {
       console.error('❌ Error finalizing order:', error);
       toast({
@@ -308,6 +421,10 @@ export default function TransportOrdersManagement() {
 
   const canCancel = (order: TransportOrder) => {
     return ['ORDERED', 'CONFIRMED'].includes(order.status);
+  };
+
+  const canViewNir = (order: TransportOrder) => {
+    return order.status === 'DELIVERED';
   };
 
   // Pagination handlers
@@ -503,6 +620,20 @@ export default function TransportOrdersManagement() {
                                 variant="outline"
                                 colorScheme="red"
                                 onClick={() => handleCancelOrder(order)}
+                              />
+                            </Tooltip>
+                          )}
+
+                          {canViewNir(order) && (
+                            <Tooltip label="Vezi / exportă NIR">
+                              <IconButton
+                                aria-label="Vezi NIR"
+                                icon={<Icon as={FiFileText} />}
+                                size="sm"
+                                variant="outline"
+                                colorScheme="purple"
+                                isLoading={loadingNir}
+                                onClick={() => handleViewNir(order)}
                               />
                             </Tooltip>
                           )}
@@ -762,6 +893,19 @@ export default function TransportOrdersManagement() {
                         Anulează Comanda
                       </Button>
                     )}
+
+                    {canViewNir(selectedOrder) && (
+                      <Button
+                        colorScheme="purple"
+                        leftIcon={<Icon as={FiFileText} />}
+                        onClick={() => {
+                          onDetailsClose();
+                          handleViewNir(selectedOrder);
+                        }}
+                      >
+                        Vezi NIR
+                      </Button>
+                    )}
                   </HStack>
                 </HStack>
               </VStack>
@@ -790,60 +934,173 @@ export default function TransportOrdersManagement() {
               <Alert status="info">
                 <AlertIcon />
                 <Box>
-                  <AlertTitle>Finalizare comandă</AlertTitle>
+                  <AlertTitle>Finalizare comandă și emitere NIR</AlertTitle>
                   <AlertDescription>
-                    Confirmă cantitățile primite pentru fiecare produs. Produsele vor fi adăugate automat în inventar.
+                    Confirmă cantitatea și prețul REAL primite (conform facturii) pentru fiecare produs. Stocul se actualizează cu aceste valori, iar diferențele față de comandă se consemnează automat pe Nota de Recepție și Constatare de Diferențe (NIR).
                   </AlertDescription>
                 </Box>
               </Alert>
 
-              {orderItems.map((item, index) => (
-                <Card key={index} variant="outline">
-                  <CardBody>
-                    <VStack align="stretch" spacing={3}>
-                      <HStack justify="space-between">
-                        <VStack align="start" spacing={1}>
-                          <Text fontWeight="semibold">{item.product_name}</Text>
-                          <Text fontSize="sm" color="gray.500">
-                            Comandat: {item.quantity} {item.product_unit}
+              {orderItems.map((item, index) => {
+                const received = receivedItems.find(ri => ri.orderItemId === item.id);
+                const receivedQuantity = received?.receivedQuantity ?? item.quantity;
+                const receivedUnitPrice = received?.receivedUnitPrice ?? item.unit_price;
+                const qtyDiffers = Number(receivedQuantity) !== Number(item.quantity);
+                const priceDiffers = Number(receivedUnitPrice) !== Number(item.unit_price);
+
+                const updateItem = (field: 'receivedQuantity' | 'receivedUnitPrice', value: number) => {
+                  setReceivedItems(prev => prev.map(ri =>
+                    ri.orderItemId === item.id ? { ...ri, [field]: value } : ri
+                  ));
+                };
+
+                return (
+                  <Card key={index} variant="outline" borderColor={(qtyDiffers || priceDiffers) ? 'orange.300' : undefined}>
+                    <CardBody>
+                      <VStack align="stretch" spacing={3}>
+                        <HStack justify="space-between">
+                          <VStack align="start" spacing={1}>
+                            <Text fontWeight="semibold">{item.product_name}</Text>
+                            <Text fontSize="sm" color="gray.500">
+                              Comandat: {item.quantity} {item.product_unit} × {Number(item.unit_price).toFixed(2)} lei
+                            </Text>
+                          </VStack>
+                          <Text fontWeight="bold" color="green.600">
+                            {item.total_price.toFixed(2)} lei
                           </Text>
-                        </VStack>
-                        <Text fontWeight="bold" color="green.600">
-                          {item.total_price.toFixed(2)} lei
-                        </Text>
-                      </HStack>
-                      
+                        </HStack>
+
+                        <HStack spacing={4} align="start">
+                          <FormControl>
+                            <FormLabel fontSize="sm">Cantitate primită</FormLabel>
+                            <NumberInput
+                              min={0}
+                              value={receivedQuantity}
+                              onChange={(valueString) => updateItem('receivedQuantity', parseFloat(valueString) || 0)}
+                            >
+                              <NumberInputField />
+                              <NumberInputStepper>
+                                <NumberIncrementStepper />
+                                <NumberDecrementStepper />
+                              </NumberInputStepper>
+                            </NumberInput>
+                          </FormControl>
+                          <FormControl>
+                            <FormLabel fontSize="sm">Preț unitar primit (fără TVA)</FormLabel>
+                            <NumberInput
+                              min={0}
+                              precision={2}
+                              step={0.1}
+                              value={receivedUnitPrice}
+                              onChange={(valueString) => updateItem('receivedUnitPrice', parseFloat(valueString) || 0)}
+                            >
+                              <NumberInputField />
+                              <NumberInputStepper>
+                                <NumberIncrementStepper />
+                                <NumberDecrementStepper />
+                              </NumberInputStepper>
+                            </NumberInput>
+                          </FormControl>
+                        </HStack>
+
+                        {(qtyDiffers || priceDiffers) && (
+                          <Alert status="warning" borderRadius="md" py={2}>
+                            <AlertIcon />
+                            <Text fontSize="xs">
+                              Diferență față de comandă va fi consemnată pe NIR
+                              {qtyDiffers && ` (cantitate: ${item.quantity} → ${receivedQuantity})`}
+                              {priceDiffers && ` (preț: ${Number(item.unit_price).toFixed(2)} → ${Number(receivedUnitPrice).toFixed(2)} lei)`}
+                            </Text>
+                          </Alert>
+                        )}
+                      </VStack>
+                    </CardBody>
+                  </Card>
+                );
+              })}
+
+              <Card variant="outline" bg={useColorModeValue('gray.50', 'gray.900')}>
+                <CardHeader pb={2}>
+                  <Heading size="sm">Date recepție (NIR)</Heading>
+                </CardHeader>
+                <CardBody pt={0}>
+                  <VStack spacing={3} align="stretch">
+                    <HStack spacing={3}>
+                      <FormControl isRequired>
+                        <FormLabel fontSize="sm">Nr. factură</FormLabel>
+                        <Input
+                          size="sm"
+                          value={nirForm.invoiceNumber}
+                          onChange={(e) => setNirForm({ ...nirForm, invoiceNumber: e.target.value })}
+                        />
+                      </FormControl>
                       <FormControl>
-                        <FormLabel fontSize="sm">Cantitate primită</FormLabel>
+                        <FormLabel fontSize="sm">Data facturii</FormLabel>
+                        <Input
+                          size="sm"
+                          type="date"
+                          value={nirForm.invoiceDate}
+                          onChange={(e) => setNirForm({ ...nirForm, invoiceDate: e.target.value })}
+                        />
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel fontSize="sm">Cota TVA (%)</FormLabel>
                         <NumberInput
+                          size="sm"
                           min={0}
-                          max={item.quantity * 2}
-                          value={receivedItems.find(ri => ri.productId === item.product_id)?.receivedQuantity || item.quantity}
-                          onChange={(valueString) => {
-                            const value = parseInt(valueString) || 0;
-                            setReceivedItems(prev => 
-                              prev.map(ri => 
-                                ri.productId === item.product_id 
-                                  ? { ...ri, receivedQuantity: value }
-                                  : ri
-                              ).filter(ri => ri.productId !== item.product_id).concat({
-                                productId: item.product_id,
-                                receivedQuantity: value
-                              })
-                            );
-                          }}
+                          max={100}
+                          value={nirForm.tvaRate}
+                          onChange={(v) => setNirForm({ ...nirForm, tvaRate: parseFloat(v) || 0 })}
                         >
                           <NumberInputField />
-                          <NumberInputStepper>
-                            <NumberIncrementStepper />
-                            <NumberDecrementStepper />
-                          </NumberInputStepper>
                         </NumberInput>
                       </FormControl>
-                    </VStack>
-                  </CardBody>
-                </Card>
-              ))}
+                    </HStack>
+                    <HStack spacing={3}>
+                      <FormControl>
+                        <FormLabel fontSize="sm">Aviz de însoțire a mărfii</FormLabel>
+                        <Input
+                          size="sm"
+                          value={nirForm.deliveryNoteNumber}
+                          onChange={(e) => setNirForm({ ...nirForm, deliveryNoteNumber: e.target.value })}
+                        />
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel fontSize="sm">Auto/vagon nr. (opțional)</FormLabel>
+                        <Input
+                          size="sm"
+                          value={nirForm.vehicleNumber}
+                          onChange={(e) => setNirForm({ ...nirForm, vehicleNumber: e.target.value })}
+                        />
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel fontSize="sm">Delegat (opțional)</FormLabel>
+                        <Input
+                          size="sm"
+                          value={nirForm.delegateName}
+                          onChange={(e) => setNirForm({ ...nirForm, delegateName: e.target.value })}
+                        />
+                      </FormControl>
+                    </HStack>
+                    <Divider />
+                    <Text fontSize="sm" fontWeight="semibold">Comisia de recepție</Text>
+                    <HStack spacing={3}>
+                      <Input size="sm" placeholder="Membru 1" value={nirForm.commissionMember1} onChange={(e) => setNirForm({ ...nirForm, commissionMember1: e.target.value })} />
+                      <Input size="sm" placeholder="Membru 2" value={nirForm.commissionMember2} onChange={(e) => setNirForm({ ...nirForm, commissionMember2: e.target.value })} />
+                      <Input size="sm" placeholder="Membru 3" value={nirForm.commissionMember3} onChange={(e) => setNirForm({ ...nirForm, commissionMember3: e.target.value })} />
+                    </HStack>
+                    <FormControl isRequired>
+                      <FormLabel fontSize="sm">Primit în gestiune de (nume)</FormLabel>
+                      <Input
+                        size="sm"
+                        value={nirForm.receivedByName}
+                        onChange={(e) => setNirForm({ ...nirForm, receivedByName: e.target.value })}
+                        placeholder={user?.name || ''}
+                      />
+                    </FormControl>
+                  </VStack>
+                </CardBody>
+              </Card>
 
               <HStack justify="space-between" pt={4}>
                 <Button variant="outline" onClick={onFinalizeClose}>
@@ -853,8 +1110,9 @@ export default function TransportOrdersManagement() {
                   colorScheme="green"
                   leftIcon={<Icon as={FiCheckCircle} />}
                   onClick={finalizeOrder}
+                  isDisabled={!nirForm.invoiceNumber.trim() || !nirForm.receivedByName.trim()}
                 >
-                  Finalizează și Adaugă în Inventar
+                  Finalizează, Actualizează Stocul și Emite NIR
                 </Button>
               </HStack>
             </VStack>
@@ -913,6 +1171,35 @@ export default function TransportOrdersManagement() {
                 </Button>
               </HStack>
             </VStack>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+
+      {/* Modal pentru vizualizare / export NIR */}
+      <Modal isOpen={isNirOpen} onClose={onNirClose} size="6xl" scrollBehavior="inside">
+        <ModalOverlay backdropFilter="blur(10px)" bg="blackAlpha.600" />
+        <ModalContent bg={bgColor} borderRadius="2xl">
+          <ModalHeader
+            bgGradient="linear(135deg, purple.500, blue.600)"
+            color="white"
+            borderRadius="2xl"
+          >
+            <HStack>
+              <Icon as={FiFileText} boxSize={6} />
+              <Text>Nota de Recepție și Constatare de Diferențe (NIR)</Text>
+            </HStack>
+          </ModalHeader>
+          <ModalCloseButton color="white" />
+          <ModalBody p={6}>
+            {nirData && (
+              <NirDocument
+                event={nirData.event}
+                supplierName={nirData.supplierName}
+                nir={nirData.nir}
+                items={nirData.items}
+                userRoles={user?.roles || []}
+              />
+            )}
           </ModalBody>
         </ModalContent>
       </Modal>

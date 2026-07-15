@@ -124,6 +124,8 @@ router.put('/transport-orders/:id/cancel', authorize('SUPER_ADMIN', 'DEPARTMENT_
 // Rută alternativă pentru finalizare prin event ID
 router.post('/events/:id/finalize', authorize('SUPER_ADMIN', 'DEPARTMENT_ADMIN', 'MANAGER', 'INSPECTOR', 'WAREHOUSE_KEEPER'), CalendarController.finalizeTransportOrder);
 router.get('/transport-orders/:id/items', CalendarController.getTransportOrderItems);
+router.get('/transport-orders/:id/nir', CalendarController.getTransportOrderNIR);
+router.get('/events/:id/nir', CalendarController.getTransportOrderNIR);
 router.get('/events/:eventId/transport-items', CalendarController.getEventTransportItems);
 router.put('/events/:eventId/transport-status', authorize('SUPER_ADMIN', 'DEPARTMENT_ADMIN', 'MANAGER', 'INSPECTOR', 'WAREHOUSE_KEEPER'), CalendarController.updateTransportEventStatus);
 

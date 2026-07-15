@@ -105,6 +105,7 @@ export const BudgetController = {
     try {
       const year = parseInt(String(req.query.year || new Date().getFullYear()), 10);
       const type = String(req.query.type || 'REVENUE').toUpperCase();
+      const fundingSource = String(req.query.funding_source || req.query.fundingSource || 'OWN_REVENUE').toUpperCase();
       const [rows] = await pool.execute(
         `
         SELECT
@@ -123,13 +124,13 @@ export const BudgetController = {
           COALESCE(baa.amount, 0) as amount
         FROM budget_indicators bi
         LEFT JOIN budget_annual_allocations baa
-          ON baa.indicator_id = bi.id AND baa.year = ?
+          ON baa.indicator_id = bi.id AND baa.year = ? AND baa.funding_source = ?
         WHERE bi.is_active = TRUE AND bi.indicator_type = ?
         ORDER BY bi.display_order, LENGTH(bi.indicator_code), bi.indicator_code
         `,
-        [year, type]
+        [year, fundingSource, type]
       );
-      res.json({ success: true, data: rows, year, type });
+      res.json({ success: true, data: rows, year, type, funding_source: fundingSource });
     } catch (error) {
       console.error('Error getting annual budget:', error);
       res.status(500).json({ success: false, message: 'Eroare la încărcarea bugetului anual' });
@@ -142,6 +143,7 @@ export const BudgetController = {
       if (!req.user) return res.status(401).json({ success: false, message: 'Neautentificat' });
       const year = parseInt(String(req.params.year), 10);
       const { items } = req.body as any;
+      const fundingSource = String(req.body.funding_source || req.body.fundingSource || 'OWN_REVENUE').toUpperCase();
       if (!Number.isFinite(year)) {
         conn.release();
         return res.status(400).json({ success: false, message: 'year invalid' });
@@ -158,14 +160,14 @@ export const BudgetController = {
         const amount = parseNumberSafe(it.amount);
         await conn.execute(
           `
-          INSERT INTO budget_annual_allocations (year, indicator_id, amount, created_by, updated_by)
-          VALUES (?, ?, ?, ?, ?)
+          INSERT INTO budget_annual_allocations (year, funding_source, indicator_id, amount, created_by, updated_by)
+          VALUES (?, ?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE
             amount = VALUES(amount),
             updated_by = VALUES(updated_by),
             updated_at = CURRENT_TIMESTAMP
           `,
-          [year, indicatorId, amount, req.user.id, req.user.id]
+          [year, fundingSource, indicatorId, amount, req.user.id, req.user.id]
         );
       }
       await conn.commit();
